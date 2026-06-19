@@ -138,6 +138,32 @@ input[type="range"]::-webkit-slider-thumb {
   -webkit-line-clamp: 3;
 }
 
+/* Legal pages (Terms / Privacy) body content */
+.legal-body strong {
+  color: #fafafa;
+  font-weight: 600;
+}
+.legal-body a {
+  color: #a78bfa;
+  font-weight: 600;
+}
+.legal-body a:hover {
+  text-decoration: underline;
+}
+.legal-body ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+}
+.legal-body ul li {
+  margin-top: 0.35rem;
+}
+.legal-body h3 {
+  color: #fafafa;
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-top: 0.75rem;
+}
+
 /* Recharts dark theme tweaks */
 .recharts-cartesian-axis-tick-value {
   fill: #71717a;

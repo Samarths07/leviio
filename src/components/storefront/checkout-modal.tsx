@@ -162,6 +162,17 @@ export function CheckoutModal({
               Pay {formatCurrency(total)}
             </Button>
           </div>
+          <p className="text-center text-[11px] leading-relaxed text-muted-foreground">
+            By completing your purchase you agree to the{" "}
+            <Link href="/terms" target="_blank" className="font-semibold text-primary hover:underline">
+              Terms
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy" target="_blank" className="font-semibold text-primary hover:underline">
+              Privacy Policy
+            </Link>
+            .
+          </p>
         </div>
       )}
 
