@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -19,7 +19,6 @@ import { creator as seedCreator, findDiscount, storeReviews, type DiscountCode }
 import type { CartItem, Creator, Order, Product } from "@/lib/types";
 import { compactNumber, formatCurrency } from "@/lib/utils";
 import { initialFulfillment } from "@/lib/delivery";
-import { useApp } from "@/lib/store";
 import { getSupabaseBrowser } from "@/lib/supabase/config";
 import * as db from "@/lib/supabase/db";
 import { Logo } from "@/components/shared/logo";
@@ -37,7 +36,6 @@ const tabs = ["All", "Programs", "Nutrition", "Coaching", "Merch"];
 
 export default function StorefrontPage() {
   const { toast } = useToast();
-  const { addOrder, products: allProducts, user, usingSupabase } = useApp();
   const params = useParams();
   const username =
     typeof params?.username === "string"
@@ -46,16 +44,16 @@ export default function StorefrontPage() {
         ? params.username[0]
         : "";
 
-  // Supabase mode: load the store owner + their published products by username.
+  // Load the store owner + their published products by username (Supabase).
   const [sbProfile, setSbProfile] = useState<Creator | null>(null);
   const [sbProducts, setSbProducts] = useState<Product[]>([]);
-  const [sbLoading, setSbLoading] = useState(usingSupabase);
+  const [sbLoading, setSbLoading] = useState(true);
   const [sbNotFound, setSbNotFound] = useState(false);
 
   useEffect(() => {
-    if (!usingSupabase) return;
     const sb = getSupabaseBrowser();
     if (!sb || !username) {
+      setSbNotFound(true);
       setSbLoading(false);
       return;
     }
@@ -76,20 +74,14 @@ export default function StorefrontPage() {
     return () => {
       active = false;
     };
-  }, [usingSupabase, username]);
+  }, [username]);
 
-  // The store owner: in Supabase mode the profile loaded by username; in mock
-  // mode the logged-in creator (or the seed profile).
-  const profile = usingSupabase ? sbProfile ?? seedCreator : user ?? seedCreator;
+  // The store owner loaded by username (seedCreator is only a load-time default
+  // for the accent color; the real UI renders after the guards below).
+  const profile = sbProfile ?? seedCreator;
   const accent = profile.bannerColor;
+  const published = sbProducts;
 
-  const published = useMemo(
-    () =>
-      usingSupabase
-        ? sbProducts
-        : allProducts.filter((p) => p.status === "Published"),
-    [usingSupabase, sbProducts, allProducts]
-  );
   const [tab, setTab] = useState("All");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
@@ -126,15 +118,15 @@ export default function StorefrontPage() {
   const setQty = (id: string, q: number) =>
     setCart((prev) => (q <= 0 ? prev.filter((i) => i.product.id !== id) : prev.map((i) => (i.product.id === id ? { ...i, quantity: q } : i))));
 
-  // Supabase mode: loading / store-not-found states.
-  if (usingSupabase && sbLoading) {
+  // Loading / store-not-found states.
+  if (sbLoading) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
     );
   }
-  if (usingSupabase && (sbNotFound || !sbProfile)) {
+  if (sbNotFound || !sbProfile) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-background px-6 text-center">
         <ShoppingBag className="h-8 w-8 text-muted-foreground" />
@@ -395,17 +387,13 @@ export default function StorefrontPage() {
             fulfillment: initialFulfillment(i.product.type),
             address: i.product.type === "Physical" ? customer.address : undefined,
           }));
-          if (usingSupabase) {
-            // Anonymous buyer → insert orders against the store owner directly
-            // (the "storefront can create orders" RLS policy allows this).
-            const sb = getSupabaseBrowser();
-            if (sb && sbProfile) {
-              created.forEach((o) =>
-                db.insertOrder(sb, sbProfile.id, o).catch(() => {})
-              );
-            }
-          } else {
-            created.forEach(addOrder);
+          // Anonymous buyer → insert orders against the store owner directly
+          // (the "storefront can create orders" RLS policy allows this).
+          const sb = getSupabaseBrowser();
+          if (sb && sbProfile) {
+            created.forEach((o) =>
+              db.insertOrder(sb, sbProfile.id, o).catch(() => {})
+            );
           }
           setCart([]);
           setDiscount(null);

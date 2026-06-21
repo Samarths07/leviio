@@ -11,16 +11,6 @@ import {
 } from "react";
 import type { ReactNode } from "react";
 import { useToast } from "@/components/ui/toast";
-import {
-  calendarEvents as seedEvents,
-  clients as seedClients,
-  conversations as seedConversations,
-  creator as seedCreator,
-  mealPlans as seedMealPlans,
-  products as seedProducts,
-  transactions as seedOrders,
-  workoutPrograms as seedPrograms,
-} from "./mock-data";
 import type {
   CalendarEvent,
   CartItem,
@@ -37,22 +27,25 @@ import type {
 import { newTrialExpiry, uid } from "./utils";
 import { isOversized } from "./security";
 import { makeGuestClient } from "./portal";
-import { getSupabaseBrowser, isSupabaseConfigured } from "./supabase/config";
+import { getSupabaseBrowser } from "./supabase/config";
 import * as db from "./supabase/db";
 import type { Session } from "@supabase/supabase-js";
 
 /**
- * The store runs in one of two modes (see src/lib/supabase/config.ts):
- *  - Supabase mode  → real auth + database (production with env vars set).
- *  - Mock mode      → localStorage + seed data (local dev / demo deploy).
- * `USING_SUPABASE` is decided once from env at module load.
+ * Supabase-backed application store.
+ *
+ * All app data (profile, products, clients, plans, programs, events, orders,
+ * messages) lives in Supabase Postgres — nothing is persisted to localStorage.
+ * The only things kept in localStorage are the shopping cart (pre-checkout,
+ * client-only) and the auth rate-limit counter (see src/lib/security.ts).
+ *
+ * Mutations update React state optimistically and persist to Supabase in the
+ * background; failures are surfaced via toast without losing the optimistic UI.
  */
-const USING_SUPABASE = isSupabaseConfigured();
 
 /**
- * Normalizes a stored/seed creator into the current plan model.
- * Migrates legacy plans to a fresh Pro free-trial and ensures a trial
- * expiry exists so the countdown timer always has something to show.
+ * Normalizes a stored creator into the current plan model: ensures a Pro plan
+ * always has a trial flag + expiry so the countdown timer has something to show.
  */
 function normalizeUser(u: Creator): Creator {
   const plan: Plan = u.plan === "Free" || u.plan === "Pro" ? u.plan : "Pro";
@@ -67,43 +60,23 @@ function normalizeUser(u: Creator): Creator {
   };
 }
 
-const KEYS = {
-  auth: "leviio_auth",
-  clientAuth: "leviio_client_auth",
-  products: "leviio_products",
-  clients: "leviio_clients",
-  mealPlans: "leviio_mealplans",
-  programs: "leviio_programs",
-  events: "leviio_events",
-  conversations: "leviio_conversations",
-  cart: "leviio_cart",
-  orders: "leviio_orders",
-};
+// The cart is the only app state kept client-side (it's pre-checkout and, for
+// anonymous storefront buyers, has nowhere server-side to live yet).
+const CART_KEY = "leviio_cart";
 
-function read<T>(key: string, fallback: T): T {
+function readCart(): CartItem[] {
   try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
+    const raw = localStorage.getItem(CART_KEY);
+    return raw ? (JSON.parse(raw) as CartItem[]) : [];
   } catch {
-    return fallback;
+    return [];
   }
 }
 
-function write(key: string, value: unknown) {
-  // Reject oversized / unserialisable payloads before persisting.
-  if (isOversized(value)) {
-    if (typeof console !== "undefined") {
-      console.warn(`[leviio] skipped oversized write to "${key}"`);
-    }
-    return;
-  }
+function writeCart(value: CartItem[]) {
+  if (isOversized(value)) return;
   try {
-    const serialized = JSON.stringify(value);
-    // Skip no-op writes. Besides saving work, this breaks the cross-tab echo
-    // loop: a tab applying another tab's update would otherwise re-persist the
-    // identical value and bounce a storage event straight back, forever.
-    if (localStorage.getItem(key) === serialized) return;
-    localStorage.setItem(key, serialized);
+    localStorage.setItem(CART_KEY, JSON.stringify(value));
   } catch {
     /* quota exceeded or unavailable — ignore */
   }
@@ -111,9 +84,7 @@ function write(key: string, value: unknown) {
 
 interface AppContextValue {
   hydrated: boolean;
-  /** True when the store is backed by Supabase (vs. localStorage demo mode). */
-  usingSupabase: boolean;
-  // auth
+  // auth (creator)
   user: Creator | null;
   login: (email: string, password: string) => Promise<boolean>;
   signup: (
@@ -122,11 +93,10 @@ interface AppContextValue {
   logout: () => void;
   updateUser: (patch: Partial<Creator>) => void;
   // client portal auth (the customer side)
-  /** The signed-in client's coach (Supabase portal mode); null in mock mode. */
+  /** The signed-in client's coach (public, email-free profile). */
   coach: Creator | null;
   clientUser: Client | null;
-  clientLogin: (email: string) => Client | null;
-  /** Supabase portal: email a magic link to the client. Returns send status. */
+  /** Send a passwordless magic link to the client. Returns send status. */
   clientLoginOtp: (email: string) => Promise<{ ok: boolean; error?: string }>;
   clientLogout: () => void;
   // products
@@ -183,15 +153,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Creator | null>(null);
   const [clientUser, setClientUser] = useState<Client | null>(null);
   const [coach, setCoach] = useState<Creator | null>(null);
-  const [products, setProducts] = useState<Product[]>(seedProducts);
-  const [clients, setClients] = useState<Client[]>(seedClients);
-  const [mealPlans, setMealPlans] = useState<MealPlan[]>(seedMealPlans);
-  const [programs, setPrograms] = useState<WorkoutProgram[]>(seedPrograms);
-  const [events, setEvents] = useState<CalendarEvent[]>(seedEvents);
-  const [conversations, setConversations] =
-    useState<Conversation[]>(seedConversations);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [mealPlans, setMealPlans] = useState<MealPlan[]>([]);
+  const [programs, setPrograms] = useState<WorkoutProgram[]>([]);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [orders, setOrders] = useState<Order[]>(seedOrders);
+  const [orders, setOrders] = useState<Order[]>([]);
 
   // Surface a background-persistence failure without losing the optimistic UI.
   const reportError = useCallback(
@@ -311,38 +280,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // ---- Hydration ----------------------------------------------------------
   useEffect(() => {
-    // Mock mode: hydrate from localStorage + seeds (original behaviour).
-    if (!USING_SUPABASE || !sb) {
-      const storedUser = read<Creator | null>(KEYS.auth, null);
-      if (storedUser) {
-        const normalized = normalizeUser(storedUser);
-        setUser(normalized);
-        write(KEYS.auth, normalized);
-      } else {
-        setUser(null);
-      }
-      setClientUser(read<Client | null>(KEYS.clientAuth, null));
-      setProducts(read(KEYS.products, seedProducts));
-      setClients(read(KEYS.clients, seedClients));
-      setMealPlans(read(KEYS.mealPlans, seedMealPlans));
-      setPrograms(read(KEYS.programs, seedPrograms));
-      setEvents(read(KEYS.events, seedEvents));
-      setConversations(read(KEYS.conversations, seedConversations));
-      setCart(read(KEYS.cart, []));
-      setOrders(read(KEYS.orders, seedOrders));
+    let active = true;
+    setCart(readCart());
+
+    if (!sb) {
+      // Supabase isn't configured — render with empty state rather than crash.
       setHydrated(true);
       return;
     }
 
-    // Supabase mode: resolve the current session, then subscribe to changes.
-    let active = true;
     (async () => {
       const {
         data: { session },
       } = await sb.auth.getSession();
       if (!active) return;
       await applySession(session);
-      setCart(read(KEYS.cart, []));
       if (active) setHydrated(true);
     })();
 
@@ -356,77 +308,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, [sb, applySession]);
 
-  // ---- localStorage persistence (mock mode only; cart always) -------------
-  const persist = useCallback(
-    (key: string, value: unknown) => {
-      if (hydrated && !USING_SUPABASE) write(key, value);
-    },
-    [hydrated]
-  );
-
-  useEffect(() => persist(KEYS.products, products), [products, persist]);
-  useEffect(() => persist(KEYS.clients, clients), [clients, persist]);
-  useEffect(() => persist(KEYS.mealPlans, mealPlans), [mealPlans, persist]);
-  useEffect(() => persist(KEYS.programs, programs), [programs, persist]);
-  useEffect(() => persist(KEYS.events, events), [events, persist]);
-  useEffect(
-    () => persist(KEYS.conversations, conversations),
-    [conversations, persist]
-  );
-  useEffect(() => persist(KEYS.orders, orders), [orders, persist]);
-  // Cart persists locally in both modes (it's pre-checkout, client-only state).
+  // Persist the cart (only) to localStorage.
   useEffect(() => {
-    if (hydrated) write(KEYS.cart, cart);
+    if (hydrated) writeCart(cart);
   }, [cart, hydrated]);
-
-  // Cross-tab sync via the Storage API — mock mode only. (In Supabase mode,
-  // cross-device sync would use Supabase Realtime; see README Phase B.)
-  useEffect(() => {
-    if (!hydrated || USING_SUPABASE) return;
-    const onStorage = (e: StorageEvent) => {
-      if (!e.key || e.newValue == null) return;
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(e.newValue);
-      } catch {
-        return;
-      }
-      switch (e.key) {
-        case KEYS.conversations:
-          setConversations(parsed as Conversation[]);
-          break;
-        case KEYS.orders:
-          setOrders(parsed as Order[]);
-          break;
-        case KEYS.products:
-          setProducts(parsed as Product[]);
-          break;
-        case KEYS.clients:
-          setClients(parsed as Client[]);
-          break;
-        case KEYS.mealPlans:
-          setMealPlans(parsed as MealPlan[]);
-          break;
-        case KEYS.programs:
-          setPrograms(parsed as WorkoutProgram[]);
-          break;
-        case KEYS.events:
-          setEvents(parsed as CalendarEvent[]);
-          break;
-        case KEYS.cart:
-          setCart(parsed as CartItem[]);
-          break;
-        case KEYS.auth:
-          setUser(parsed as Creator | null);
-          break;
-        case KEYS.clientAuth:
-          setClientUser(parsed as Client | null);
-          break;
-      }
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, [hydrated]);
 
   // Plan expiry automation — when a Pro plan/trial lapses, auto-downgrade to Free.
   useEffect(() => {
@@ -445,14 +330,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
             trial: false,
             planExpiresAt: undefined,
           };
-          if (USING_SUPABASE && sb) {
+          if (sb) {
             db.updateProfile(sb, downgraded.id, {
               plan: "Free",
               trial: false,
               planExpiresAt: undefined,
             }).catch((e) => reportError(e, "your plan"));
-          } else {
-            write(KEYS.auth, downgraded);
           }
           if (!expiredNotified.current) {
             expiredNotified.current = true;
@@ -477,60 +360,47 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // ---- auth ---------------------------------------------------------------
   const login = useCallback(
     async (email: string, password: string): Promise<boolean> => {
+      if (!sb) return false;
       expiredNotified.current = false;
 
-      if (USING_SUPABASE && sb) {
-        const { data, error } = await sb.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
-        if (error || !data.user) return false;
-        let profile = await db.getProfile(sb, data.user.id);
-        if (!profile) {
-          // First login on a confirm-email project: create the profile now,
-          // backfilled from the metadata captured at signup.
-          const md = (data.user.user_metadata ?? {}) as {
-            name?: string;
-            username?: string;
-          };
-          const fallbackName =
-            md.name || data.user.email?.split("@")[0] || "Creator";
-          profile = {
-            id: data.user.id,
-            name: fallbackName,
-            email: data.user.email ?? email.trim(),
-            username:
-              md.username ||
-              fallbackName.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 16),
-            niche: "",
-            bio: "",
-            location: "",
-            avatarSeed: fallbackName,
-            bannerColor: "#7c3aed",
-            followers: 0,
-            plan: "Pro",
-            trial: true,
-            planExpiresAt: newTrialExpiry(),
-            socials: {},
-            isDemo: false,
-          };
-          await db.insertProfile(sb, profile).catch(() => {});
-        }
-        setUser(normalizeUser(profile));
-        await loadCreatorData(data.user.id);
-        return true;
-      }
-
-      // Mock auth: preserve an existing account's plan/expiry; brand-new logins
-      // start on a fresh 1-month Pro trial (via normalizeUser).
-      const existing = read<Creator | null>(KEYS.auth, null);
-      const base = existing ?? seedCreator;
-      const u = normalizeUser({
-        ...base,
-        email: email || base.email || seedCreator.email,
+      const { data, error } = await sb.auth.signInWithPassword({
+        email: email.trim(),
+        password,
       });
-      setUser(u);
-      write(KEYS.auth, u);
+      if (error || !data.user) return false;
+
+      let profile = await db.getProfile(sb, data.user.id);
+      if (!profile) {
+        // First login on a confirm-email project: create the profile now,
+        // backfilled from the metadata captured at signup.
+        const md = (data.user.user_metadata ?? {}) as {
+          name?: string;
+          username?: string;
+        };
+        const fallbackName = md.name || data.user.email?.split("@")[0] || "Creator";
+        profile = {
+          id: data.user.id,
+          name: fallbackName,
+          email: data.user.email ?? email.trim(),
+          username:
+            md.username ||
+            fallbackName.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 16),
+          niche: "",
+          bio: "",
+          location: "",
+          avatarSeed: fallbackName,
+          bannerColor: "#7c3aed",
+          followers: 0,
+          plan: "Pro",
+          trial: true,
+          planExpiresAt: newTrialExpiry(),
+          socials: {},
+          isDemo: false,
+        };
+        await db.insertProfile(sb, profile).catch(() => {});
+      }
+      setUser(normalizeUser(profile));
+      await loadCreatorData(data.user.id);
       return true;
     },
     [sb, loadCreatorData]
@@ -540,65 +410,47 @@ export function AppProvider({ children }: { children: ReactNode }) {
     async (
       data: Partial<Creator> & { name: string; email: string; password?: string }
     ): Promise<boolean> => {
+      if (!sb) return false;
       const username =
         data.username ||
         data.name.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 16);
 
-      if (USING_SUPABASE && sb) {
-        const { data: res, error } = await sb.auth.signUp({
-          email: data.email.trim(),
-          password: data.password ?? "",
-          options: { data: { name: data.name, username } },
-        });
-        if (error) {
-          toast(error.message, { variant: "error" });
-          return false;
-        }
-        // Email-confirmation projects return no session until the link is clicked.
-        if (!res.session) {
-          toast("Check your email to confirm your account, then log in.", {
-            variant: "info",
-          });
-          return false;
-        }
-        // Create the creator's profile row (the app, not a trigger, owns this).
-        const creator: Creator = {
-          id: res.user!.id,
-          name: data.name,
-          email: data.email.trim(),
-          username,
-          niche: data.niche ?? "",
-          bio: "",
-          location: "",
-          avatarSeed: data.name,
-          bannerColor: "#7c3aed",
-          followers: 0,
-          plan: "Pro",
-          trial: true,
-          planExpiresAt: newTrialExpiry(),
-          socials: {},
-          isDemo: false,
-        };
-        await db
-          .insertProfile(sb, creator)
-          .catch((e) => reportError(e, "your profile"));
-        setUser(normalizeUser(creator));
-        return true;
+      const { data: res, error } = await sb.auth.signUp({
+        email: data.email.trim(),
+        password: data.password ?? "",
+        options: { data: { name: data.name, username } },
+      });
+      if (error) {
+        toast(error.message, { variant: "error" });
+        return false;
       }
-
-      // Mock sign-up: start a 1-month free Pro trial.
-      const u = normalizeUser({
-        ...seedCreator,
-        ...data,
-        id: "creator_" + Math.random().toString(36).slice(2, 8),
+      // Email-confirmation projects return no session until the link is clicked.
+      if (!res.session) {
+        toast("Check your email to confirm your account, then log in.", {
+          variant: "info",
+        });
+        return false;
+      }
+      // Create the creator's profile row (the app, not a trigger, owns this).
+      const creator: Creator = {
+        id: res.user!.id,
+        name: data.name,
+        email: data.email.trim(),
         username,
-        isDemo: false,
+        niche: data.niche ?? "",
+        bio: "",
+        location: "",
+        avatarSeed: data.name,
+        bannerColor: "#7c3aed",
+        followers: 0,
         plan: "Pro",
         trial: true,
         planExpiresAt: newTrialExpiry(),
-      });
-      setUser(u);
-      write(KEYS.auth, u);
+        socials: {},
+        isDemo: false,
+      };
+      await db.insertProfile(sb, creator).catch((e) => reportError(e, "your profile"));
+      setUser(normalizeUser(creator));
       return true;
     },
     [sb, toast, reportError]
@@ -606,11 +458,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     setUser(null);
-    if (USING_SUPABASE && sb) {
-      sb.auth.signOut();
-    } else {
-      write(KEYS.auth, null);
-    }
+    sb?.auth.signOut();
   }, [sb]);
 
   const updateUser = useCallback(
@@ -620,13 +468,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setUser((prev) => {
         if (!prev) return prev;
         const next = { ...prev, ...patch };
-        if (USING_SUPABASE && sb) {
+        if (sb)
           db.updateProfile(sb, prev.id, patch).catch((e) =>
             reportError(e, "your profile")
           );
-        } else {
-          write(KEYS.auth, next);
-        }
         return next;
       });
     },
@@ -634,32 +479,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   // ---- client portal auth -------------------------------------------------
-  // Resolve a buyer email to a managed client, or (failing that) to a guest
-  // client built from their storefront orders. Returns null if no purchases.
-  const clientLogin = useCallback(
-    (email: string): Client | null => {
-      const e = email.trim().toLowerCase();
-      if (!e) return null;
-      const managed = clients.find((c) => c.email?.toLowerCase() === e);
-      let resolved: Client | null = managed ?? null;
-      if (!resolved) {
-        const order = orders.find((o) => o.email?.toLowerCase() === e);
-        if (order) resolved = makeGuestClient(e, order.client);
-      }
-      if (resolved) {
-        setClientUser(resolved);
-        write(KEYS.clientAuth, resolved);
-      }
-      return resolved;
-    },
-    [clients, orders]
-  );
-
-  // Supabase portal: send a passwordless magic link to the client's email.
+  // Send a passwordless magic link to the client's email. After they click it
+  // they return authenticated and applySession() resolves their portal data.
   const clientLoginOtp = useCallback(
     async (email: string): Promise<{ ok: boolean; error?: string }> => {
-      if (!(USING_SUPABASE && sb))
-        return { ok: false, error: "Supabase not configured" };
+      if (!sb) return { ok: false, error: "Supabase not configured" };
       const base =
         process.env.NEXT_PUBLIC_SITE_URL ??
         (typeof window !== "undefined" ? window.location.origin : "");
@@ -676,18 +500,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const clientLogout = useCallback(() => {
     setClientUser(null);
     setCoach(null);
-    if (USING_SUPABASE && sb) {
-      sb.auth.signOut();
-    } else {
-      write(KEYS.clientAuth, null);
-    }
+    sb?.auth.signOut();
   }, [sb]);
 
   // ---- products -----------------------------------------------------------
   const addProduct = useCallback(
     (p: Product) => {
       setProducts((prev) => [p, ...prev]);
-      if (USING_SUPABASE && sb && user)
+      if (sb && user)
         db.upsertProduct(sb, user.id, p).catch((e) => reportError(e, "product"));
     },
     [sb, user, reportError]
@@ -697,7 +517,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setProducts((prev) => {
         const next = prev.map((p) => (p.id === id ? { ...p, ...patch } : p));
         const updated = next.find((p) => p.id === id);
-        if (USING_SUPABASE && sb && user && updated)
+        if (sb && user && updated)
           db.upsertProduct(sb, user.id, updated).catch((e) =>
             reportError(e, "product")
           );
@@ -708,8 +528,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const deleteProduct = useCallback(
     (id: string) => {
       setProducts((prev) => prev.filter((p) => p.id !== id));
-      if (USING_SUPABASE && sb)
-        db.deleteProduct(sb, id).catch((e) => reportError(e, "product"));
+      if (sb) db.deleteProduct(sb, id).catch((e) => reportError(e, "product"));
     },
     [sb, reportError]
   );
@@ -718,7 +537,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addClient = useCallback(
     (c: Client) => {
       setClients((prev) => [c, ...prev]);
-      if (USING_SUPABASE && sb && user)
+      if (sb && user)
         db.upsertClient(sb, user.id, c).catch((e) => reportError(e, "client"));
     },
     [sb, user, reportError]
@@ -728,7 +547,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setClients((prev) => {
         const next = prev.map((c) => (c.id === id ? { ...c, ...patch } : c));
         const updated = next.find((c) => c.id === id);
-        if (USING_SUPABASE && sb && user && updated)
+        if (sb && user && updated)
           db.upsertClient(sb, user.id, updated).catch((e) =>
             reportError(e, "client")
           );
@@ -744,18 +563,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const exists = prev.some((x) => x.id === p.id);
         return exists ? prev.map((x) => (x.id === p.id ? p : x)) : [p, ...prev];
       });
-      if (USING_SUPABASE && sb && user)
-        db.upsertMealPlan(sb, user.id, p).catch((e) =>
-          reportError(e, "meal plan")
-        );
+      if (sb && user)
+        db.upsertMealPlan(sb, user.id, p).catch((e) => reportError(e, "meal plan"));
     },
     [sb, user, reportError]
   );
   const deleteMealPlan = useCallback(
     (id: string) => {
       setMealPlans((prev) => prev.filter((p) => p.id !== id));
-      if (USING_SUPABASE && sb)
-        db.deleteMealPlan(sb, id).catch((e) => reportError(e, "meal plan"));
+      if (sb) db.deleteMealPlan(sb, id).catch((e) => reportError(e, "meal plan"));
     },
     [sb, reportError]
   );
@@ -767,7 +583,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const exists = prev.some((x) => x.id === p.id);
         return exists ? prev.map((x) => (x.id === p.id ? p : x)) : [p, ...prev];
       });
-      if (USING_SUPABASE && sb && user)
+      if (sb && user)
         db.upsertProgram(sb, user.id, p).catch((e) => reportError(e, "program"));
     },
     [sb, user, reportError]
@@ -775,8 +591,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const deleteProgram = useCallback(
     (id: string) => {
       setPrograms((prev) => prev.filter((p) => p.id !== id));
-      if (USING_SUPABASE && sb)
-        db.deleteProgram(sb, id).catch((e) => reportError(e, "program"));
+      if (sb) db.deleteProgram(sb, id).catch((e) => reportError(e, "program"));
     },
     [sb, reportError]
   );
@@ -785,7 +600,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addEvent = useCallback(
     (e: CalendarEvent) => {
       setEvents((prev) => [...prev, e]);
-      if (USING_SUPABASE && sb && user)
+      if (sb && user)
         db.upsertEvent(sb, user.id, e).catch((err) => reportError(err, "event"));
     },
     [sb, user, reportError]
@@ -795,7 +610,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setEvents((prev) => {
         const next = prev.map((e) => (e.id === id ? { ...e, ...patch } : e));
         const updated = next.find((e) => e.id === id);
-        if (USING_SUPABASE && sb && user && updated)
+        if (sb && user && updated)
           db.upsertEvent(sb, user.id, updated).catch((err) =>
             reportError(err, "event")
           );
@@ -806,8 +621,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const deleteEvent = useCallback(
     (id: string) => {
       setEvents((prev) => prev.filter((e) => e.id !== id));
-      if (USING_SUPABASE && sb)
-        db.deleteEvent(sb, id).catch((err) => reportError(err, "event"));
+      if (sb) db.deleteEvent(sb, id).catch((err) => reportError(err, "event"));
     },
     [sb, reportError]
   );
@@ -819,26 +633,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       text: string,
       from: "creator" | "client" = "creator"
     ) => {
-      const msg: Message = {
-        id: uid("m"),
-        from,
-        text,
-        time: "now",
-      };
+      const msg: Message = { id: uid("m"), from, text, time: "now" };
       let nextUnread = 0;
       setConversations((prev) =>
         prev.map((c) => {
           if (c.id !== conversationId) return c;
           nextUnread = from === "client" ? c.unread + 1 : c.unread;
-          return {
-            ...c,
-            messages: [...c.messages, msg],
-            // a client message is unread from the creator's perspective
-            unread: nextUnread,
-          };
+          return { ...c, messages: [...c.messages, msg], unread: nextUnread };
         })
       );
-      if (USING_SUPABASE && sb) {
+      if (sb) {
         db.insertMessage(sb, conversationId, msg).catch((e) =>
           reportError(e, "message")
         );
@@ -853,8 +657,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setConversations((prev) =>
         prev.map((c) => (c.id === conversationId ? { ...c, unread: 0 } : c))
       );
-      if (USING_SUPABASE && sb)
-        db.setConversationUnread(sb, conversationId, 0).catch(() => {});
+      if (sb) db.setConversationUnread(sb, conversationId, 0).catch(() => {});
     },
     [sb]
   );
@@ -875,7 +678,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setConversations((prev) =>
         prev.some((c) => c.clientId === client.id) ? prev : [conv, ...prev]
       );
-      if (USING_SUPABASE && sb && user)
+      if (sb && user)
         db.insertConversation(sb, user.id, conv).catch((e) =>
           reportError(e, "conversation")
         );
@@ -884,7 +687,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [conversations, sb, user, reportError]
   );
 
-  // ---- cart (client-only, both modes) -------------------------------------
+  // ---- cart (client-only) -------------------------------------------------
   const addToCart = useCallback((p: Product, qty = 1) => {
     setCart((prev) => {
       const existing = prev.find((i) => i.product.id === p.id);
@@ -912,18 +715,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addOrder = useCallback(
     (order: Order) => {
       setOrders((prev) => [order, ...prev]);
-      if (USING_SUPABASE && sb && user)
+      if (sb && user)
         db.insertOrder(sb, user.id, order).catch((e) => reportError(e, "order"));
     },
     [sb, user, reportError]
   );
   const updateOrder = useCallback(
     (id: string, patch: Partial<Order>) => {
-      setOrders((prev) =>
-        prev.map((o) => (o.id === id ? { ...o, ...patch } : o))
-      );
-      if (USING_SUPABASE && sb)
-        db.updateOrder(sb, id, patch).catch((e) => reportError(e, "order"));
+      setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, ...patch } : o)));
+      if (sb) db.updateOrder(sb, id, patch).catch((e) => reportError(e, "order"));
     },
     [sb, reportError]
   );
@@ -931,7 +731,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AppContextValue>(
     () => ({
       hydrated,
-      usingSupabase: USING_SUPABASE,
       user,
       login,
       signup,
@@ -939,7 +738,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateUser,
       coach,
       clientUser,
-      clientLogin,
       clientLoginOtp,
       clientLogout,
       products,
@@ -974,7 +772,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }),
     [
       hydrated, user, login, signup, logout, updateUser,
-      coach, clientUser, clientLogin, clientLoginOtp, clientLogout,
+      coach, clientUser, clientLoginOtp, clientLogout,
       products, addProduct, updateProduct, deleteProduct,
       clients, addClient, updateClient,
       mealPlans, saveMealPlan, deleteMealPlan,

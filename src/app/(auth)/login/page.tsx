@@ -6,14 +6,13 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Eye, EyeOff, Info, Loader2, ShieldAlert } from "lucide-react";
+import { Eye, EyeOff, Loader2, ShieldAlert } from "lucide-react";
 import { AuthSidePanel } from "@/components/auth/auth-side-panel";
 import { Logo } from "@/components/shared/logo";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { useApp } from "@/lib/store";
 import { useToast } from "@/components/ui/toast";
-import { DEMO_CREDENTIALS } from "@/lib/mock-data";
 import {
   LIMITS,
   authLockStatus,
@@ -30,7 +29,7 @@ type FormValues = z.infer<typeof schema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, usingSupabase } = useApp();
+  const { login } = useApp();
   const { toast } = useToast();
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -39,61 +38,40 @@ export default function LoginPage() {
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
   const onSubmit = async (data: FormValues) => {
-    // Rate limit: max 5 attempts / 15 minutes (client-side guard).
+    // Rate limit: max 5 attempts / 15 minutes (client-side guard; Supabase also
+    // enforces limits server-side).
     const status = authLockStatus();
     if (!status.allowed) {
       setLockMsg(`Too many attempts. Try again in ${formatRetry(status.retryAfterMs)}.`);
       return;
     }
+    setLoading(true);
 
-    const finishOk = () => {
+    const ok = await login(data.email, data.password);
+    if (ok) {
       clearAuthAttempts();
       toast("Welcome back!", { variant: "success" });
       router.push("/dashboard");
-    };
-    // Failed attempt — record it and surface remaining tries / lockout.
-    const finishFail = () => {
-      setLoading(false);
-      const r = recordAuthAttempt();
-      if (!r.allowed) {
-        setLockMsg(`Too many failed attempts. Try again in ${formatRetry(r.retryAfterMs)}.`);
-        toast("Account temporarily locked", { variant: "error" });
-      } else {
-        setLockMsg("");
-        toast(
-          `Invalid email or password. ${r.remaining} attempt${r.remaining === 1 ? "" : "s"} left.`,
-          { variant: "error" }
-        );
-      }
-    };
-
-    setLoading(true);
-
-    // Supabase mode: real auth decides the outcome.
-    if (usingSupabase) {
-      const ok = await login(data.email, data.password);
-      if (ok) finishOk();
-      else finishFail();
       return;
     }
 
-    // Mock mode: gate on the demo credentials with a short delay for realism.
-    const ok =
-      data.email.trim().toLowerCase() === DEMO_CREDENTIALS.email.toLowerCase() &&
-      data.password === DEMO_CREDENTIALS.password;
-    setTimeout(async () => {
-      if (ok) {
-        await login(data.email, data.password);
-        finishOk();
-      } else {
-        finishFail();
-      }
-    }, 600);
+    // Failed attempt — record it and surface remaining tries / lockout.
+    setLoading(false);
+    const r = recordAuthAttempt();
+    if (!r.allowed) {
+      setLockMsg(`Too many failed attempts. Try again in ${formatRetry(r.retryAfterMs)}.`);
+      toast("Account temporarily locked", { variant: "error" });
+    } else {
+      setLockMsg("");
+      toast(
+        `Invalid email or password. ${r.remaining} attempt${r.remaining === 1 ? "" : "s"} left.`,
+        { variant: "error" }
+      );
+    }
   };
 
   return (
@@ -111,29 +89,6 @@ export default function LoginPage() {
           <p className="mt-1 text-sm text-muted-foreground">
             Log in to your Leviio dashboard.
           </p>
-
-          {/* Demo banner — only in mock mode (no demo account exists on Supabase) */}
-          {!usingSupabase && (
-            <div className="mt-5 flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/10 p-3 text-xs">
-              <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-              <div className="text-foreground/90">
-                <p className="font-semibold">Demo account</p>
-                <p className="text-muted-foreground">
-                  {DEMO_CREDENTIALS.email} / {DEMO_CREDENTIALS.password}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setValue("email", DEMO_CREDENTIALS.email);
-                    setValue("password", DEMO_CREDENTIALS.password);
-                  }}
-                  className="mt-1 font-semibold text-primary hover:underline"
-                >
-                  Fill demo credentials
-                </button>
-              </div>
-            </div>
-          )}
 
           <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
             <div>
