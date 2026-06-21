@@ -87,7 +87,7 @@ export function TopNav({
           align="right"
           trigger={
             <span className="flex items-center gap-2 rounded-lg p-1 hover:bg-white/[0.06]">
-              <Avatar name={user?.name ?? "Creator"} seed={user?.avatarSeed} size={32} ring />
+              <Avatar name={user?.name ?? "Creator"} seed={user?.avatarSeed} src={user?.avatarUrl} size={32} ring />
             </span>
           }
         >

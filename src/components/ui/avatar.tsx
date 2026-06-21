@@ -4,16 +4,21 @@ import { avatarUrl, cn, initials } from "@/lib/utils";
 export function Avatar({
   name,
   seed,
+  src,
   size = 40,
   className,
   ring,
 }: {
   name: string;
   seed?: string;
+  /** Uploaded photo URL; when present it's shown instead of the generated avatar. */
+  src?: string;
   size?: number;
   className?: string;
   ring?: boolean;
 }) {
+  const imgSrc =
+    src && src.length > 0 ? src : avatarUrl(seed ?? name, Math.max(80, size * 2));
   return (
     <span
       className={cn(
@@ -24,7 +29,7 @@ export function Avatar({
       style={{ width: size, height: size }}
     >
       <Image
-        src={avatarUrl(seed ?? name, Math.max(80, size * 2))}
+        src={imgSrc}
         alt={name}
         fill
         sizes={`${size}px`}

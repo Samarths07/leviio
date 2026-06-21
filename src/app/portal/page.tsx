@@ -111,7 +111,7 @@ export default function PortalHome() {
           </div>
         </div>
         <div className="flex items-center gap-2.5 rounded-xl border border-border bg-background/40 px-3 py-2">
-          <Avatar name={coach.name} seed={coach.avatarSeed} size={34} ring />
+          <Avatar name={coach.name} seed={coach.avatarSeed} src={coach.avatarUrl} size={34} ring />
           <div>
             <p className="text-[11px] text-muted-foreground">Your coach</p>
             <p className="text-sm font-bold text-foreground">{coach.name}</p>

@@ -54,7 +54,7 @@ export default function PortalMessages() {
       <Card className="flex h-[calc(100dvh-220px)] min-h-[440px] flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center gap-3 border-b border-border p-3">
-          <Avatar name={coach.name} seed={coach.avatarSeed} size={40} ring />
+          <Avatar name={coach.name} seed={coach.avatarSeed} src={coach.avatarUrl} size={40} ring />
           <div>
             <p className="text-sm font-bold text-foreground">{coach.name}</p>
             <p className="text-xs text-success">● Usually replies within a day</p>

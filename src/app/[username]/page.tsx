@@ -174,7 +174,7 @@ export default function StorefrontPage() {
       <div className="h-40 sm:h-52" style={{ background: `linear-gradient(135deg, ${accent}, ${accent}88)` }} />
       <div className="mx-auto max-w-5xl px-4">
         <div className="-mt-14 flex flex-col items-center text-center">
-          <Avatar name={profile.name} seed={profile.avatarSeed} size={104} className="border-4 border-background" />
+          <Avatar name={profile.name} seed={profile.avatarSeed} src={profile.avatarUrl} size={104} className="border-4 border-background" />
           <div className="mt-3 flex items-center gap-1.5">
             <h1 className="text-2xl font-extrabold tracking-tight text-foreground">{profile.name}</h1>
             <BadgeCheck className="h-6 w-6 text-success" />

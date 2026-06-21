@@ -5,12 +5,10 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
-  Camera,
   Check,
   Compass,
   Package,
   Target,
-  Upload,
   Users,
 } from "lucide-react";
 import { Logo } from "@/components/shared/logo";
@@ -18,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
-import { AvatarInitials } from "@/components/ui/avatar";
+import { AvatarUpload } from "@/components/shared/avatar-upload";
 import { useApp } from "@/lib/store";
 import { useToast } from "@/components/ui/toast";
 import { niches, themeSwatches } from "@/lib/mock-data";
@@ -53,6 +51,7 @@ export default function OnboardingPage() {
     youtube: "",
     tiktok: "",
   });
+  const [photoUrl, setPhotoUrl] = useState("");
 
   const progress = ((step + 1) / steps.length) * 100;
 
@@ -66,6 +65,7 @@ export default function OnboardingPage() {
           .replace(/[^a-z0-9]/g, ""),
       niche: profile.niche,
       bio: profile.bio || user?.bio,
+      avatarUrl: photoUrl || undefined,
       bannerColor: store.color,
       socials: {
         instagram: store.instagram,
@@ -109,13 +109,13 @@ export default function OnboardingPage() {
         <div className="mt-8 animate-fade-in">
           {step === 0 && (
             <Step title="Set up your profile" subtitle="Tell your future clients who you are.">
-              <div className="flex items-center gap-4">
-                <AvatarInitials name={profile.name || "FP"} size={64} />
-                <Button variant="outline" size="sm" onClick={() => toast("Photo upload is a demo placeholder.", { variant: "info" })}>
-                  <Camera className="h-4 w-4" />
-                  Upload photo
-                </Button>
-              </div>
+              <AvatarUpload
+                userId={user?.id ?? ""}
+                name={profile.name || "You"}
+                seed={profile.name}
+                src={photoUrl}
+                onUploaded={setPhotoUrl}
+              />
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <Label>Display name</Label>

@@ -1,15 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { DollarSign, Package, TrendingUp, UserPlus, Users } from "lucide-react";
 import { useApp } from "@/lib/store";
 import {
-  acquisitionData,
-  analyticsStats,
-  categoryRevenue,
-  revenueSeries,
-  topProducts,
-} from "@/lib/mock-data";
+  clientsByWeek,
+  completedOrders,
+  revenueByDay,
+  revenueByType,
+  topProductsFromOrders,
+} from "@/lib/analytics";
 import { formatCurrency } from "@/lib/utils";
 import { StatCard } from "@/components/shared/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,11 +29,45 @@ const ranges = [
 ];
 
 export default function AnalyticsPage() {
-  const { orders } = useApp();
+  const { orders, clients } = useApp();
   const [range, setRange] = useState("30");
-  const series = useMemo(() => revenueSeries(Number(range)), [range]);
-  const totalCategory = categoryRevenue.reduce((s, c) => s + c.value, 0);
-  const maxProduct = Math.max(...topProducts.map((p) => p.revenue));
+  const days = Number(range);
+
+  const completed = completedOrders(orders);
+  const series = revenueByDay(orders, days);
+  const rangeStart = Date.now() - days * 86400000;
+
+  const totalRevenue = completed.reduce((s, o) => s + o.amount, 0);
+  const newClients = clients.filter(
+    (c) => new Date(c.startDate).getTime() >= rangeStart
+  ).length;
+  const productsSold = completed.reduce((s, o) => s + (o.quantity ?? 1), 0);
+  const avgRevenuePerClient = clients.length
+    ? Math.round(totalRevenue / clients.length)
+    : 0;
+
+  const activeClients = clients.filter((c) => c.status !== "Inactive").length;
+  const churnedClients = clients.filter((c) => c.status === "Inactive").length;
+  const retentionRate = activeClients + churnedClients
+    ? Math.round((activeClients / (activeClients + churnedClients)) * 100)
+    : 0;
+  const avgLifetimeMonths = clients.length
+    ? Math.max(
+        1,
+        Math.round(
+          clients.reduce(
+            (s, c) => s + (Date.now() - new Date(c.startDate).getTime()) / (30 * 86400000),
+            0
+          ) / clients.length
+        )
+      )
+    : 0;
+
+  const category = revenueByType(orders);
+  const totalCategory = category.reduce((s, c) => s + c.value, 0);
+  const topProducts = topProductsFromOrders(orders, 6);
+  const maxProduct = Math.max(1, ...topProducts.map((p) => p.revenue));
+  const acquisition = clientsByWeek(clients, 6);
 
   return (
     <div className="animate-fade-in space-y-5">
@@ -47,10 +81,10 @@ export default function AnalyticsPage() {
 
       {/* Key metrics */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <StatCard label="Total Revenue" value={formatCurrency(analyticsStats.totalRevenue)} icon={DollarSign} change={analyticsStats.revenueChange} />
-        <StatCard label="New Clients" value={String(analyticsStats.newClients)} icon={UserPlus} change={14} accent="success" />
-        <StatCard label="Products Sold" value={String(analyticsStats.productsSold)} icon={Package} change={9} accent="warning" />
-        <StatCard label="Avg / Client" value={formatCurrency(analyticsStats.avgRevenuePerClient)} icon={Users} change={6} />
+        <StatCard label="Total Revenue" value={formatCurrency(totalRevenue)} icon={DollarSign} accent="primary" />
+        <StatCard label="New Clients" value={String(newClients)} icon={UserPlus} accent="success" />
+        <StatCard label="Products Sold" value={String(productsSold)} icon={Package} accent="warning" />
+        <StatCard label="Avg / Client" value={formatCurrency(avgRevenuePerClient)} icon={Users} />
       </div>
 
       {/* Charts row */}
@@ -69,20 +103,26 @@ export default function AnalyticsPage() {
         <Card>
           <CardHeader><CardTitle>Revenue by Category</CardTitle></CardHeader>
           <CardContent>
-            <CategoryPieChart data={categoryRevenue} />
-            <div className="mt-3 space-y-1.5">
-              {categoryRevenue.map((c) => (
-                <div key={c.name} className="flex items-center justify-between text-sm">
-                  <span className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: c.color }} />
-                    <span className="text-muted-foreground">{c.name}</span>
-                  </span>
-                  <span className="font-semibold text-foreground">
-                    {Math.round((c.value / totalCategory) * 100)}%
-                  </span>
+            {totalCategory === 0 ? (
+              <p className="py-10 text-center text-sm text-muted-foreground">No sales yet.</p>
+            ) : (
+              <>
+                <CategoryPieChart data={category} />
+                <div className="mt-3 space-y-1.5">
+                  {category.map((c) => (
+                    <div key={c.name} className="flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: c.color }} />
+                        <span className="text-muted-foreground">{c.name}</span>
+                      </span>
+                      <span className="font-semibold text-foreground">
+                        {Math.round((c.value / totalCategory) * 100)}%
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -92,6 +132,9 @@ export default function AnalyticsPage() {
         <Card>
           <CardHeader><CardTitle>Top Products</CardTitle></CardHeader>
           <CardContent className="space-y-4">
+            {topProducts.length === 0 && (
+              <p className="text-sm text-muted-foreground">No sales yet.</p>
+            )}
             {topProducts.map((p) => (
               <div key={p.id}>
                 <div className="flex items-center justify-between text-sm">
@@ -100,9 +143,7 @@ export default function AnalyticsPage() {
                 </div>
                 <div className="mt-1.5 flex items-center gap-2">
                   <Progress value={(p.revenue / maxProduct) * 100} className="h-1.5" />
-                  <span className="shrink-0 text-xs text-muted-foreground">
-                    {Math.round((p.revenue / maxProduct) * 100)}% · {p.sales} sold
-                  </span>
+                  <span className="shrink-0 text-xs text-muted-foreground">{p.sales} sold</span>
                 </div>
               </div>
             ))}
@@ -112,15 +153,8 @@ export default function AnalyticsPage() {
         <Card>
           <CardHeader><CardTitle>Client Acquisition</CardTitle></CardHeader>
           <CardContent>
-            <AcquisitionBarChart data={acquisitionData} />
-            <div className="mt-2 flex justify-center gap-4 text-xs">
-              <span className="flex items-center gap-1.5 text-muted-foreground">
-                <span className="h-2.5 w-2.5 rounded-full bg-primary" /> New clients
-              </span>
-              <span className="flex items-center gap-1.5 text-muted-foreground">
-                <span className="h-2.5 w-2.5 rounded-full bg-[#3f3f46]" /> Returning
-              </span>
-            </div>
+            <AcquisitionBarChart data={acquisition} />
+            <p className="mt-2 text-center text-xs text-muted-foreground">New clients per week</p>
           </CardContent>
         </Card>
       </div>
@@ -129,29 +163,29 @@ export default function AnalyticsPage() {
       <div className="grid gap-5 sm:grid-cols-3">
         <Card className="p-5">
           <p className="text-sm font-bold text-foreground">Retention Rate</p>
-          <p className="mt-3 text-3xl font-extrabold text-success">{analyticsStats.retentionRate}%</p>
-          <Progress value={analyticsStats.retentionRate} className="mt-3 h-2" barClassName="bg-success" />
+          <p className="mt-3 text-3xl font-extrabold text-success">{retentionRate}%</p>
+          <Progress value={retentionRate} className="mt-3 h-2" barClassName="bg-success" />
         </Card>
         <Card className="p-5">
-          <p className="text-sm font-bold text-foreground">Active vs Churned</p>
+          <p className="text-sm font-bold text-foreground">Active vs Inactive</p>
           <div className="mt-3 flex items-end gap-4">
             <div>
-              <p className="text-2xl font-extrabold text-foreground">{analyticsStats.activeClients}</p>
+              <p className="text-2xl font-extrabold text-foreground">{activeClients}</p>
               <p className="text-xs text-muted-foreground">Active</p>
             </div>
             <div>
-              <p className="text-2xl font-extrabold text-danger">{analyticsStats.churnedClients}</p>
-              <p className="text-xs text-muted-foreground">Churned</p>
+              <p className="text-2xl font-extrabold text-danger">{churnedClients}</p>
+              <p className="text-xs text-muted-foreground">Inactive</p>
             </div>
           </div>
           <Progress
-            value={(analyticsStats.activeClients / (analyticsStats.activeClients + analyticsStats.churnedClients)) * 100}
+            value={activeClients + churnedClients ? (activeClients / (activeClients + churnedClients)) * 100 : 0}
             className="mt-3 h-2"
           />
         </Card>
         <Card className="p-5">
           <p className="text-sm font-bold text-foreground">Avg Client Lifetime</p>
-          <p className="mt-3 text-3xl font-extrabold text-foreground">{analyticsStats.avgLifetimeMonths}</p>
+          <p className="mt-3 text-3xl font-extrabold text-foreground">{avgLifetimeMonths}</p>
           <p className="text-xs text-muted-foreground">months per client</p>
         </Card>
       </div>
@@ -173,6 +207,13 @@ export default function AnalyticsPage() {
                 </tr>
               </thead>
               <tbody>
+                {orders.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-5 py-8 text-center text-sm text-muted-foreground">
+                      No transactions yet.
+                    </td>
+                  </tr>
+                )}
                 {orders.slice(0, 12).map((t) => (
                   <tr key={t.id} className="border-b border-border/60 last:border-0 hover:bg-white/[0.02]">
                     <td className="px-5 py-3 text-muted-foreground">{t.date}</td>

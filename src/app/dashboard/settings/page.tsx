@@ -4,7 +4,6 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Bell,
-  Camera,
   Check,
   CreditCard,
   Lock,
@@ -20,7 +19,7 @@ import { useToast } from "@/components/ui/toast";
 import { niches, pricingPlans, themeSwatches } from "@/lib/mock-data";
 import { cn, formatCurrency, formatDate, newTrialExpiry } from "@/lib/utils";
 import { PlanPurchaseDialog } from "@/components/dashboard/plan-purchase-dialog";
-import { Avatar } from "@/components/ui/avatar";
+import { AvatarUpload } from "@/components/shared/avatar-upload";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -85,12 +84,13 @@ function ProfileTab({ user, onSave, toast }: any) {
     <Card>
       <CardHeader><CardTitle>Profile</CardTitle></CardHeader>
       <CardContent className="space-y-5">
-        <div className="flex items-center gap-4">
-          <Avatar name={user.name} seed={user.avatarSeed} size={64} ring />
-          <Button variant="outline" size="sm" onClick={() => toast("Photo upload (demo).", { variant: "info" })}>
-            <Camera className="h-4 w-4" /> Change photo
-          </Button>
-        </div>
+        <AvatarUpload
+          userId={user.id}
+          name={user.name}
+          seed={user.avatarSeed}
+          src={user.avatarUrl}
+          onUploaded={(url) => onSave({ avatarUrl: url })}
+        />
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <Label>Display name</Label>

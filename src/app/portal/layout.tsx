@@ -92,7 +92,7 @@ export default function PortalLayout({
 
         <div className="space-y-2 border-t border-border p-3">
           <div className="flex items-center gap-2.5 rounded-xl border border-border bg-card p-2.5">
-            <Avatar name={coach.name} seed={coach.avatarSeed} size={32} ring />
+            <Avatar name={coach.name} seed={coach.avatarSeed} src={coach.avatarUrl} size={32} ring />
             <div className="min-w-0 flex-1">
               <p className="truncate text-[11px] text-muted-foreground">Coached by</p>
               <p className="truncate text-xs font-bold text-foreground">{coach.name}</p>

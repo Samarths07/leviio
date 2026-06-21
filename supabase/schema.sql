@@ -24,6 +24,7 @@ create table if not exists public.profiles (
   bio             text default '',
   location        text default '',
   avatar_seed     text default '',
+  avatar_url      text default '',
   banner_color    text default '#7c3aed',
   followers       integer default 0,
   plan            text default 'Free' check (plan in ('Free', 'Pro')),
@@ -205,7 +206,7 @@ create policy "own profile" on public.profiles
 -- by its owner (the "own profile" policy above).
 create or replace view public.public_profiles as
   select id, name, username, niche, bio, location,
-         avatar_seed, banner_color, followers, socials
+         avatar_seed, avatar_url, banner_color, followers, socials
   from public.profiles;
 
 grant select on public.public_profiles to anon, authenticated;
@@ -337,3 +338,35 @@ create policy "client rw own messages" on public.messages
 -- from an earlier version of this schema.
 drop trigger if exists on_auth_user_created on auth.users;
 drop function if exists public.handle_new_user();
+
+-- ============================================================================
+-- STORAGE: avatars bucket (uploaded profile photos)
+-- ----------------------------------------------------------------------------
+-- Public-read bucket; each user can write only to their own folder (<uid>/...).
+-- The app uploads to `avatars/<userId>/avatar-*.png` (see src/lib/upload.ts).
+-- ============================================================================
+insert into storage.buckets (id, name, public)
+values ('avatars', 'avatars', true)
+on conflict (id) do nothing;
+
+drop policy if exists "avatars public read" on storage.objects;
+create policy "avatars public read" on storage.objects
+  for select using (bucket_id = 'avatars');
+
+drop policy if exists "avatars owner insert" on storage.objects;
+create policy "avatars owner insert" on storage.objects
+  for insert with check (
+    bucket_id = 'avatars' and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+drop policy if exists "avatars owner update" on storage.objects;
+create policy "avatars owner update" on storage.objects
+  for update using (
+    bucket_id = 'avatars' and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+drop policy if exists "avatars owner delete" on storage.objects;
+create policy "avatars owner delete" on storage.objects
+  for delete using (
+    bucket_id = 'avatars' and auth.uid()::text = (storage.foldername(name))[1]
+  );

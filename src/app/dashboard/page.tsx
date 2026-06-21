@@ -12,8 +12,8 @@ import {
   Users,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
-import { overviewStats, revenue30, topProducts } from "@/lib/mock-data";
-import { compactNumber, formatCurrency, formatDate } from "@/lib/utils";
+import { overviewMetrics, revenueByDay, topProductsFromOrders } from "@/lib/analytics";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { StatCard } from "@/components/shared/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
@@ -35,12 +35,18 @@ const quickActions = [
 export default function OverviewPage() {
   const { user, clients, events, orders } = useApp();
 
+  const metrics = overviewMetrics(orders, clients, events);
+  const revenue30 = revenueByDay(orders, 30);
+  const topProducts = topProductsFromOrders(orders, 5);
+  const maxRevenue = Math.max(1, ...topProducts.map((p) => p.revenue));
+
   const recentOrders = orders.slice(0, 10);
+  const today = new Date().toISOString().slice(0, 10);
   const upcoming = [...events]
-    .filter((e) => e.date >= "2026-06-17" && e.clientName)
+    .filter((e) => e.date >= today && e.clientName)
+    .sort((a, b) => (a.date < b.date ? -1 : 1))
     .slice(0, 3);
   const recentClients = clients.slice(0, 5);
-  const maxRevenue = Math.max(...topProducts.map((p) => p.revenue));
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -61,28 +67,27 @@ export default function OverviewPage() {
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard
           label="Revenue This Month"
-          value={formatCurrency(overviewStats.revenueThisMonth)}
+          value={formatCurrency(metrics.revenueThisMonth)}
           icon={DollarSign}
-          change={overviewStats.revenueChange}
+          change={metrics.revenueChange || undefined}
           accent="primary"
         />
         <StatCard
           label="Active Clients"
-          value={String(overviewStats.activeClients)}
+          value={String(metrics.activeClients)}
           icon={Users}
-          hint={`+${overviewStats.newClientsThisWeek} this week`}
+          hint={metrics.newClientsThisWeek ? `+${metrics.newClientsThisWeek} this week` : undefined}
           accent="success"
         />
         <StatCard
           label="Products Sold"
-          value={String(overviewStats.productsSold)}
+          value={String(metrics.productsSold)}
           icon={ShoppingCart}
-          change={8}
           accent="warning"
         />
         <StatCard
           label="Upcoming Sessions"
-          value={String(overviewStats.upcomingSessions)}
+          value={String(metrics.upcomingSessions)}
           icon={CalendarPlus}
           hint="Next 7 days"
           accent="primary"
@@ -115,7 +120,12 @@ export default function OverviewPage() {
             </CardTitle>
             <p className="mt-0.5 text-xs text-muted-foreground">Last 30 days</p>
           </div>
-          <Badge variant="success">+{overviewStats.revenueChange}%</Badge>
+          {metrics.revenueChange !== 0 && (
+            <Badge variant={metrics.revenueChange > 0 ? "success" : "danger"}>
+              {metrics.revenueChange > 0 ? "+" : ""}
+              {metrics.revenueChange}%
+            </Badge>
+          )}
         </CardHeader>
         <CardContent>
           <RevenueLineChart data={revenue30} />
@@ -146,6 +156,13 @@ export default function OverviewPage() {
                   </tr>
                 </thead>
                 <tbody>
+                  {recentOrders.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="px-5 py-8 text-center text-sm text-muted-foreground">
+                        No orders yet — they&apos;ll appear here after your first sale.
+                      </td>
+                    </tr>
+                  )}
                   {recentOrders.map((o) => (
                     <tr
                       key={o.id}
@@ -175,6 +192,9 @@ export default function OverviewPage() {
             <CardTitle>Top Products</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {topProducts.length === 0 && (
+              <p className="text-sm text-muted-foreground">No sales yet.</p>
+            )}
             {topProducts.map((p, i) => (
               <div key={p.id}>
                 <div className="flex items-center justify-between gap-3 text-sm">
@@ -253,6 +273,9 @@ export default function OverviewPage() {
             </Link>
           </CardHeader>
           <CardContent className="space-y-3">
+            {recentClients.length === 0 && (
+              <p className="text-sm text-muted-foreground">No clients yet.</p>
+            )}
             {recentClients.map((c) => (
               <Link
                 key={c.id}

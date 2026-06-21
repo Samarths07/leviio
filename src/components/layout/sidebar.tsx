@@ -27,7 +27,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       <div className="border-b border-border p-4">
         <Logo />
         <div className="mt-4 flex items-center gap-3 rounded-xl border border-border bg-card p-2.5">
-          <Avatar name={user?.name ?? "Creator"} seed={user?.avatarSeed} size={38} ring />
+          <Avatar name={user?.name ?? "Creator"} seed={user?.avatarSeed} src={user?.avatarUrl} size={38} ring />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold text-foreground">
               {user?.name ?? "Creator"}

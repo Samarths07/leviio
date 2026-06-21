@@ -12,12 +12,8 @@ import {
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useToast } from "@/components/ui/toast";
-import {
-  coachingPackages as seedPackages,
-  coachingResources,
-  sessionNotes as seedNotes,
-} from "@/lib/mock-data";
-import type { CoachingPackage } from "@/lib/types";
+import { coachingResources } from "@/lib/mock-data";
+import type { CoachingPackage, SessionNote } from "@/lib/types";
 import { formatCurrency, formatDate, uid } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -30,8 +26,8 @@ import { Dialog } from "@/components/ui/dialog";
 export default function CoachingPage() {
   const { clients, events } = useApp();
   const { toast } = useToast();
-  const [packages, setPackages] = useState<CoachingPackage[]>(seedPackages);
-  const [notes, setNotes] = useState(seedNotes);
+  const [packages, setPackages] = useState<CoachingPackage[]>([]);
+  const [notes, setNotes] = useState<SessionNote[]>([]);
   const [editing, setEditing] = useState<CoachingPackage | null>(null);
   const [pkgOpen, setPkgOpen] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);

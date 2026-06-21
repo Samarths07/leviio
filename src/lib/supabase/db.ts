@@ -57,6 +57,7 @@ export function rowToCreator(r: Row): Creator {
     bio: (r.bio as string) ?? "",
     location: (r.location as string) ?? "",
     avatarSeed: (r.avatar_seed as string) ?? "",
+    avatarUrl: (r.avatar_url as string) ?? undefined,
     bannerColor: (r.banner_color as string) ?? "#7c3aed",
     followers: (r.followers as number) ?? 0,
     plan: (r.plan as Creator["plan"]) ?? "Free",
@@ -77,6 +78,7 @@ function creatorToProfileRow(c: Partial<Creator>): Row {
   if (c.bio !== undefined) row.bio = c.bio;
   if (c.location !== undefined) row.location = c.location;
   if (c.avatarSeed !== undefined) row.avatar_seed = c.avatarSeed;
+  if (c.avatarUrl !== undefined) row.avatar_url = c.avatarUrl;
   if (c.bannerColor !== undefined) row.banner_color = c.bannerColor;
   if (c.followers !== undefined) row.followers = c.followers;
   if (c.plan !== undefined) row.plan = c.plan;

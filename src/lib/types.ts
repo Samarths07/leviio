@@ -10,6 +10,8 @@ export interface Creator {
   bio: string;
   location: string;
   avatarSeed: string;
+  /** Uploaded profile photo URL (Supabase Storage); falls back to a generated avatar. */
+  avatarUrl?: string;
   bannerColor: string;
   followers: number;
   plan: Plan;
