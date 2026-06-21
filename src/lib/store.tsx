@@ -360,16 +360,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // ---- auth ---------------------------------------------------------------
   const login = useCallback(
     async (email: string, password: string): Promise<boolean> => {
-      if (!sb) return false;
+      if (!sb) {
+        toast("Login unavailable — the database isn't connected.", {
+          variant: "error",
+        });
+        return false;
+      }
       expiredNotified.current = false;
 
-      const { data, error } = await sb.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
-      if (error || !data.user) return false;
+      try {
+        const { data, error } = await sb.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+        if (error || !data.user) return false;
 
-      let profile = await db.getProfile(sb, data.user.id);
+        let profile = await db.getProfile(sb, data.user.id);
       if (!profile) {
         // First login on a confirm-email project: create the profile now,
         // backfilled from the metadata captured at signup.
@@ -397,61 +403,76 @@ export function AppProvider({ children }: { children: ReactNode }) {
           socials: {},
           isDemo: false,
         };
-        await db.insertProfile(sb, profile).catch(() => {});
+          await db.insertProfile(sb, profile).catch(() => {});
+        }
+        setUser(normalizeUser(profile));
+        await loadCreatorData(data.user.id);
+        return true;
+      } catch (e) {
+        reportError(e, "login");
+        return false;
       }
-      setUser(normalizeUser(profile));
-      await loadCreatorData(data.user.id);
-      return true;
     },
-    [sb, loadCreatorData]
+    [sb, toast, loadCreatorData, reportError]
   );
 
   const signup = useCallback(
     async (
       data: Partial<Creator> & { name: string; email: string; password?: string }
     ): Promise<boolean> => {
-      if (!sb) return false;
+      if (!sb) {
+        toast("Sign-up unavailable — the database isn't connected.", {
+          variant: "error",
+        });
+        return false;
+      }
       const username =
         data.username ||
         data.name.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 16);
 
-      const { data: res, error } = await sb.auth.signUp({
-        email: data.email.trim(),
-        password: data.password ?? "",
-        options: { data: { name: data.name, username } },
-      });
-      if (error) {
-        toast(error.message, { variant: "error" });
-        return false;
-      }
-      // Email-confirmation projects return no session until the link is clicked.
-      if (!res.session) {
-        toast("Check your email to confirm your account, then log in.", {
-          variant: "info",
+      try {
+        const { data: res, error } = await sb.auth.signUp({
+          email: data.email.trim(),
+          password: data.password ?? "",
+          options: { data: { name: data.name, username } },
         });
+        if (error) {
+          toast(error.message, { variant: "error" });
+          return false;
+        }
+        // Email-confirmation projects return no session until the link is clicked.
+        if (!res.session) {
+          toast(
+            "Account created — check your email to confirm it, then log in. (Tip: turn off 'Confirm email' in Supabase to skip this.)",
+            { variant: "info" }
+          );
+          return false;
+        }
+        // Create the creator's profile row (the app, not a trigger, owns this).
+        const creator: Creator = {
+          id: res.user!.id,
+          name: data.name,
+          email: data.email.trim(),
+          username,
+          niche: data.niche ?? "",
+          bio: "",
+          location: "",
+          avatarSeed: data.name,
+          bannerColor: "#7c3aed",
+          followers: 0,
+          plan: "Pro",
+          trial: true,
+          planExpiresAt: newTrialExpiry(),
+          socials: {},
+          isDemo: false,
+        };
+        await db.insertProfile(sb, creator);
+        setUser(normalizeUser(creator));
+        return true;
+      } catch (e) {
+        reportError(e, "your account");
         return false;
       }
-      // Create the creator's profile row (the app, not a trigger, owns this).
-      const creator: Creator = {
-        id: res.user!.id,
-        name: data.name,
-        email: data.email.trim(),
-        username,
-        niche: data.niche ?? "",
-        bio: "",
-        location: "",
-        avatarSeed: data.name,
-        bannerColor: "#7c3aed",
-        followers: 0,
-        plan: "Pro",
-        trial: true,
-        planExpiresAt: newTrialExpiry(),
-        socials: {},
-        isDemo: false,
-      };
-      await db.insertProfile(sb, creator).catch((e) => reportError(e, "your profile"));
-      setUser(normalizeUser(creator));
-      return true;
     },
     [sb, toast, reportError]
   );

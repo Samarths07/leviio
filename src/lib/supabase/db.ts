@@ -134,7 +134,8 @@ export async function updateProfile(
 /** Create a creator's profile row (called once on signup). Idempotent upsert. */
 export async function insertProfile(sb: SupabaseClient, c: Creator): Promise<void> {
   assertSize(c, "profile");
-  await sb.from("profiles").upsert(creatorToProfileRow(c));
+  const { error } = await sb.from("profiles").upsert(creatorToProfileRow(c));
+  if (error) throw new Error(error.message);
 }
 
 // ---------------------------------------------------------------------------
