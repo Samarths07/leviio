@@ -19,11 +19,8 @@ export const metadata: Metadata = {
   title,
   description,
   applicationName: "Leviio",
-  icons: {
-    icon: "/logo.png",
-    shortcut: "/logo.png",
-    apple: "/logo.png",
-  },
+  // Favicon + apple icon are handled by the file convention
+  // (src/app/icon.png and src/app/apple-icon.png).
   openGraph: {
     title,
     description,
