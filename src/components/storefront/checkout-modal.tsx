@@ -5,10 +5,10 @@ import Link from "next/link";
 import {
   CalendarClock,
   Check,
-  CreditCard,
   Download,
   ExternalLink,
   LayoutDashboard,
+  Loader2,
   Lock,
   PartyPopper,
   Truck,
@@ -16,10 +16,12 @@ import {
 import type { CartItem, Order } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 import { downloadDeliverable } from "@/lib/delivery";
+import { payWithRazorpay } from "@/lib/razorpay";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/toast";
 import { LIMITS, sanitizeText } from "@/lib/security";
 
 const steps = ["Details", "Payment", "Delivery"];
@@ -30,23 +32,30 @@ export function CheckoutModal({
   items,
   total,
   accent,
-  onCheckout,
+  creatorId,
+  discountCode,
+  storeName,
+  onPaid,
 }: {
   open: boolean;
   onClose: () => void;
   items: CartItem[];
   total: number;
   accent: string;
-  /** Persists the orders and returns them so we can show real delivery links. */
-  onCheckout: (customer: {
-    name: string;
-    email: string;
-    address?: string;
-  }) => Order[];
+  /** The store owner whose products are being purchased. */
+  creatorId: string;
+  /** Validated discount code applied to the cart (re-checked server-side). */
+  discountCode?: string;
+  /** Store/coach name shown in the Razorpay popup. */
+  storeName: string;
+  /** Called with the created orders after a verified payment. */
+  onPaid: (orders: Order[]) => void;
 }) {
+  const { toast } = useToast();
   const [step, setStep] = useState(0);
   const [details, setDetails] = useState({ name: "", email: "", address: "" });
   const [error, setError] = useState("");
+  const [paying, setPaying] = useState(false);
   const [created, setCreated] = useState<Order[]>([]);
 
   const hasPhysical = items.some((i) => i.product.type === "Physical");
@@ -73,17 +82,44 @@ export function CheckoutModal({
     setStep(1);
   };
 
-  const pay = () => {
-    // Sanitize before persisting (strips control chars, caps length).
-    const orders = onCheckout({
+  const pay = async () => {
+    // Sanitize before sending (strips control chars, caps length).
+    const customer = {
       name: sanitizeText(details.name, LIMITS.name) || "Guest",
       email: sanitizeText(details.email, LIMITS.email).toLowerCase(),
       address: details.address
         ? sanitizeText(details.address, LIMITS.short)
         : undefined,
+    };
+    const lineItems = items.map((i) => ({
+      productId: i.product.id,
+      quantity: i.quantity,
+    }));
+
+    setPaying(true);
+    const res = await payWithRazorpay<{ orders: Order[] }>({
+      orderPayload: { purpose: "storefront", creatorId, items: lineItems, discountCode },
+      verifyPayload: {
+        purpose: "storefront",
+        creatorId,
+        items: lineItems,
+        discountCode,
+        customer,
+      },
+      name: storeName,
+      description: `${items.length} item${items.length === 1 ? "" : "s"} from ${storeName}`,
+      prefill: { name: customer.name, email: customer.email },
+      themeColor: accent,
     });
-    setCreated(orders);
-    setStep(2);
+    setPaying(false);
+
+    if (res.ok && res.data) {
+      setCreated(res.data.orders);
+      onPaid(res.data.orders);
+      setStep(2);
+    } else if (res.error && res.error !== "cancelled") {
+      toast(res.error, { variant: "error" });
+    }
   };
 
   return (
@@ -148,23 +184,28 @@ export function CheckoutModal({
       {step === 1 && (
         <div className="space-y-4">
           <div className="flex items-center gap-2 rounded-lg border border-border bg-background/40 px-3 py-2.5 text-xs text-muted-foreground">
-            <Lock className="h-3.5 w-3.5 text-success" /> Demo only — no real payment is processed.
+            <Lock className="h-3.5 w-3.5 text-success" /> Secure payment via Razorpay — cards, UPI, netbanking &amp; wallets.
           </div>
-          <div>
-            <Label>Card number</Label>
-            <div className="relative">
-              <CreditCard className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input placeholder="4242 4242 4242 4242" className="pl-9" />
+
+          <div className="rounded-xl border border-border bg-background/40 p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Total payable</span>
+              <span className="text-lg font-extrabold text-foreground">{formatCurrency(total)}</span>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><Label>Expiry</Label><Input placeholder="MM/YY" /></div>
-            <div><Label>CVV</Label><Input placeholder="123" /></div>
-          </div>
+
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setStep(0)}>Back</Button>
-            <Button className="flex-1" style={{ backgroundColor: accent }} onClick={pay}>
-              Pay {formatCurrency(total)}
+            <Button variant="outline" onClick={() => setStep(0)} disabled={paying}>
+              Back
+            </Button>
+            <Button
+              className="flex-1"
+              style={{ backgroundColor: accent }}
+              onClick={pay}
+              disabled={paying}
+            >
+              {paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
+              {paying ? "Processing..." : `Pay ${formatCurrency(total)}`}
             </Button>
           </div>
           <p className="text-center text-[11px] leading-relaxed text-muted-foreground">

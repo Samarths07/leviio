@@ -16,9 +16,8 @@ import {
   X,
 } from "lucide-react";
 import { creator as seedCreator, findDiscount, storeReviews, type DiscountCode } from "@/lib/mock-data";
-import type { CartItem, Creator, Order, Product } from "@/lib/types";
+import type { CartItem, Creator, Product } from "@/lib/types";
 import { compactNumber, formatCurrency } from "@/lib/utils";
-import { initialFulfillment } from "@/lib/delivery";
 import { getSupabaseBrowser } from "@/lib/supabase/config";
 import * as db from "@/lib/supabase/db";
 import { Logo } from "@/components/shared/logo";
@@ -369,37 +368,15 @@ export default function StorefrontPage() {
         items={cart}
         total={total}
         accent={accent}
-        onCheckout={(customer) => {
-          const date = new Date().toISOString().slice(0, 10);
-          const factor = subtotal > 0 ? total / subtotal : 1;
-          const created: Order[] = cart.map((i) => ({
-            id: `FP-${Math.floor(10000 + Math.random() * 90000)}`,
-            client: customer.name,
-            email: customer.email,
-            product: i.product.name,
-            productId: i.product.id,
-            type: i.product.type,
-            quantity: i.quantity,
-            amount: Math.round(i.product.price * i.quantity * factor),
-            date,
-            status: "Completed",
-            method: "Card",
-            fulfillment: initialFulfillment(i.product.type),
-            address: i.product.type === "Physical" ? customer.address : undefined,
-          }));
-          // Anonymous buyer → insert orders against the store owner directly
-          // (the "storefront can create orders" RLS policy allows this).
-          const sb = getSupabaseBrowser();
-          if (sb && sbProfile) {
-            created.forEach((o) =>
-              db.insertOrder(sb, sbProfile.id, o).catch(() => {})
-            );
-          }
+        creatorId={profile.id}
+        discountCode={discount?.code}
+        storeName={profile.name}
+        onPaid={() => {
+          // Orders are created server-side after Razorpay verifies the payment.
           setCart([]);
           setDiscount(null);
           setCodeInput("");
           toast("Thank you for your purchase!", { variant: "success" });
-          return created;
         }}
       />
     </div>

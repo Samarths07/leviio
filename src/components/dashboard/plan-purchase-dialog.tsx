@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Check, CreditCard, Loader2, Lock, Sparkles } from "lucide-react";
+import { Check, Loader2, Lock, Sparkles } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { payWithRazorpay } from "@/lib/razorpay";
+import { PRO_PRICE_INR as PRO_PRICE } from "@/lib/billing";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input, Label } from "@/components/ui/input";
-
-const PRO_PRICE = 399;
+import { useToast } from "@/components/ui/toast";
 
 const proFeatures = [
   "Unlimited clients & products",
@@ -29,14 +29,23 @@ export function PlanPurchaseDialog({
   onStartTrial?: () => void;
   showTrial?: boolean;
 }) {
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
 
-  const pay = () => {
+  const pay = async () => {
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    const res = await payWithRazorpay({
+      orderPayload: { purpose: "subscription" },
+      verifyPayload: { purpose: "subscription" },
+      name: "Leviio Pro",
+      description: "1 month of Leviio Pro",
+    });
+    setLoading(false);
+    if (res.ok) {
       onPurchase();
-    }, 800);
+    } else if (res.error && res.error !== "cancelled") {
+      toast(res.error, { variant: "error" });
+    }
   };
 
   return (
@@ -61,21 +70,7 @@ export function PlanPurchaseDialog({
       </div>
 
       <div className="mt-4 flex items-center gap-2 rounded-lg border border-border bg-background/40 px-3 py-2.5 text-xs text-muted-foreground">
-        <Lock className="h-3.5 w-3.5 text-success" /> Demo only — no real payment is processed.
-      </div>
-
-      <div className="mt-4 space-y-3">
-        <div>
-          <Label>Card number</Label>
-          <div className="relative">
-            <CreditCard className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="4242 4242 4242 4242" className="pl-9" />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div><Label>Expiry</Label><Input placeholder="MM/YY" /></div>
-          <div><Label>CVV</Label><Input placeholder="123" /></div>
-        </div>
+        <Lock className="h-3.5 w-3.5 text-success" /> Secure payment via Razorpay — cards, UPI, netbanking &amp; wallets.
       </div>
 
       <Button className="mt-5 w-full" onClick={pay} disabled={loading}>
