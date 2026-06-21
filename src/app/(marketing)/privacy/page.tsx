@@ -39,7 +39,7 @@ const sections: LegalSection[] = [
         </p>
         <p>
           You can reach us at{" "}
-          <a href="mailto:privacy@leviio.app">privacy@leviio.app</a> for any
+          <a href="mailto:privacy@leviio.com">privacy@leviio.com</a> for any
           privacy questions or to exercise your rights.
         </p>
       </>
@@ -191,7 +191,7 @@ const sections: LegalSection[] = [
         </ul>
         <p>
           To exercise any right, email{" "}
-          <a href="mailto:privacy@leviio.app">privacy@leviio.app</a>. We may need
+          <a href="mailto:privacy@leviio.com">privacy@leviio.com</a>. We may need
           to verify your identity, and we will respond within the timeframes
           required by law.
         </p>
@@ -217,7 +217,7 @@ const sections: LegalSection[] = [
       <p>
         In accordance with applicable Indian law, you may contact our Grievance
         Officer regarding any concern about your personal data at{" "}
-        <a href="mailto:grievance@leviio.app">grievance@leviio.app</a>. We will
+        <a href="mailto:grievance@leviio.com">grievance@leviio.com</a>. We will
         acknowledge and address complaints within the timelines prescribed by
         law.
       </p>
@@ -241,7 +241,7 @@ const sections: LegalSection[] = [
     content: (
       <p>
         For any privacy questions or requests, contact us at{" "}
-        <a href="mailto:privacy@leviio.app">privacy@leviio.app</a>.
+        <a href="mailto:privacy@leviio.com">privacy@leviio.com</a>.
       </p>
     ),
   },

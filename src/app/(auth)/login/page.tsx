@@ -30,7 +30,7 @@ type FormValues = z.infer<typeof schema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useApp();
+  const { login, usingSupabase } = useApp();
   const { toast } = useToast();
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -43,7 +43,7 @@ export default function LoginPage() {
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
-  const onSubmit = (data: FormValues) => {
+  const onSubmit = async (data: FormValues) => {
     // Rate limit: max 5 attempts / 15 minutes (client-side guard).
     const status = authLockStatus();
     if (!status.allowed) {
@@ -51,20 +51,13 @@ export default function LoginPage() {
       return;
     }
 
-    const ok =
-      data.email.trim().toLowerCase() === DEMO_CREDENTIALS.email.toLowerCase() &&
-      data.password === DEMO_CREDENTIALS.password;
-
-    setLoading(true);
-    setTimeout(() => {
-      if (ok) {
-        clearAuthAttempts();
-        login(data.email, data.password);
-        toast("Welcome back!", { variant: "success" });
-        router.push("/dashboard");
-        return;
-      }
-      // Failed attempt — record it and surface remaining tries / lockout.
+    const finishOk = () => {
+      clearAuthAttempts();
+      toast("Welcome back!", { variant: "success" });
+      router.push("/dashboard");
+    };
+    // Failed attempt — record it and surface remaining tries / lockout.
+    const finishFail = () => {
       setLoading(false);
       const r = recordAuthAttempt();
       if (!r.allowed) {
@@ -76,6 +69,29 @@ export default function LoginPage() {
           `Invalid email or password. ${r.remaining} attempt${r.remaining === 1 ? "" : "s"} left.`,
           { variant: "error" }
         );
+      }
+    };
+
+    setLoading(true);
+
+    // Supabase mode: real auth decides the outcome.
+    if (usingSupabase) {
+      const ok = await login(data.email, data.password);
+      if (ok) finishOk();
+      else finishFail();
+      return;
+    }
+
+    // Mock mode: gate on the demo credentials with a short delay for realism.
+    const ok =
+      data.email.trim().toLowerCase() === DEMO_CREDENTIALS.email.toLowerCase() &&
+      data.password === DEMO_CREDENTIALS.password;
+    setTimeout(async () => {
+      if (ok) {
+        await login(data.email, data.password);
+        finishOk();
+      } else {
+        finishFail();
       }
     }, 600);
   };
@@ -96,26 +112,28 @@ export default function LoginPage() {
             Log in to your Leviio dashboard.
           </p>
 
-          {/* Demo banner */}
-          <div className="mt-5 flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/10 p-3 text-xs">
-            <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-            <div className="text-foreground/90">
-              <p className="font-semibold">Demo account</p>
-              <p className="text-muted-foreground">
-                {DEMO_CREDENTIALS.email} / {DEMO_CREDENTIALS.password}
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  setValue("email", DEMO_CREDENTIALS.email);
-                  setValue("password", DEMO_CREDENTIALS.password);
-                }}
-                className="mt-1 font-semibold text-primary hover:underline"
-              >
-                Fill demo credentials
-              </button>
+          {/* Demo banner — only in mock mode (no demo account exists on Supabase) */}
+          {!usingSupabase && (
+            <div className="mt-5 flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/10 p-3 text-xs">
+              <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <div className="text-foreground/90">
+                <p className="font-semibold">Demo account</p>
+                <p className="text-muted-foreground">
+                  {DEMO_CREDENTIALS.email} / {DEMO_CREDENTIALS.password}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setValue("email", DEMO_CREDENTIALS.email);
+                    setValue("password", DEMO_CREDENTIALS.password);
+                  }}
+                  className="mt-1 font-semibold text-primary hover:underline"
+                >
+                  Fill demo credentials
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
             <div>

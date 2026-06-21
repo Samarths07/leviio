@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import {
   BadgeCheck,
   Instagram,
+  Loader2,
   Minus,
   Plus,
   ShoppingBag,
@@ -14,10 +16,12 @@ import {
   X,
 } from "lucide-react";
 import { creator as seedCreator, findDiscount, storeReviews, type DiscountCode } from "@/lib/mock-data";
-import type { CartItem, Order, Product } from "@/lib/types";
+import type { CartItem, Creator, Order, Product } from "@/lib/types";
 import { compactNumber, formatCurrency } from "@/lib/utils";
 import { initialFulfillment } from "@/lib/delivery";
 import { useApp } from "@/lib/store";
+import { getSupabaseBrowser } from "@/lib/supabase/config";
+import * as db from "@/lib/supabase/db";
 import { Logo } from "@/components/shared/logo";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -33,15 +37,58 @@ const tabs = ["All", "Programs", "Nutrition", "Coaching", "Merch"];
 
 export default function StorefrontPage() {
   const { toast } = useToast();
-  const { addOrder, products: allProducts, user } = useApp();
+  const { addOrder, products: allProducts, user, usingSupabase } = useApp();
+  const params = useParams();
+  const username =
+    typeof params?.username === "string"
+      ? params.username
+      : Array.isArray(params?.username)
+        ? params.username[0]
+        : "";
 
-  // The store owner: the logged-in creator if present, else the seed profile.
-  const profile = user ?? seedCreator;
+  // Supabase mode: load the store owner + their published products by username.
+  const [sbProfile, setSbProfile] = useState<Creator | null>(null);
+  const [sbProducts, setSbProducts] = useState<Product[]>([]);
+  const [sbLoading, setSbLoading] = useState(usingSupabase);
+  const [sbNotFound, setSbNotFound] = useState(false);
+
+  useEffect(() => {
+    if (!usingSupabase) return;
+    const sb = getSupabaseBrowser();
+    if (!sb || !username) {
+      setSbLoading(false);
+      return;
+    }
+    let active = true;
+    (async () => {
+      setSbLoading(true);
+      const prof = await db.getProfileByUsername(sb, username);
+      if (!active) return;
+      if (!prof) {
+        setSbNotFound(true);
+        setSbLoading(false);
+        return;
+      }
+      setSbProfile(prof);
+      setSbProducts(await db.listPublishedProducts(sb, prof.id));
+      if (active) setSbLoading(false);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [usingSupabase, username]);
+
+  // The store owner: in Supabase mode the profile loaded by username; in mock
+  // mode the logged-in creator (or the seed profile).
+  const profile = usingSupabase ? sbProfile ?? seedCreator : user ?? seedCreator;
   const accent = profile.bannerColor;
 
   const published = useMemo(
-    () => allProducts.filter((p) => p.status === "Published"),
-    [allProducts]
+    () =>
+      usingSupabase
+        ? sbProducts
+        : allProducts.filter((p) => p.status === "Published"),
+    [usingSupabase, sbProducts, allProducts]
   );
   const [tab, setTab] = useState("All");
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -78,6 +125,30 @@ export default function StorefrontPage() {
   };
   const setQty = (id: string, q: number) =>
     setCart((prev) => (q <= 0 ? prev.filter((i) => i.product.id !== id) : prev.map((i) => (i.product.id === id ? { ...i, quantity: q } : i))));
+
+  // Supabase mode: loading / store-not-found states.
+  if (usingSupabase && sbLoading) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-background">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+  if (usingSupabase && (sbNotFound || !sbProfile)) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-background px-6 text-center">
+        <ShoppingBag className="h-8 w-8 text-muted-foreground" />
+        <p className="text-lg font-bold text-foreground">Store not found</p>
+        <p className="text-sm text-muted-foreground">
+          We couldn&apos;t find a creator at{" "}
+          <span className="font-semibold">/{username}</span>.
+        </p>
+        <Link href="/" className="mt-1 text-sm font-semibold text-primary hover:underline">
+          Go home
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-dvh bg-background">
@@ -324,7 +395,18 @@ export default function StorefrontPage() {
             fulfillment: initialFulfillment(i.product.type),
             address: i.product.type === "Physical" ? customer.address : undefined,
           }));
-          created.forEach(addOrder);
+          if (usingSupabase) {
+            // Anonymous buyer → insert orders against the store owner directly
+            // (the "storefront can create orders" RLS policy allows this).
+            const sb = getSupabaseBrowser();
+            if (sb && sbProfile) {
+              created.forEach((o) =>
+                db.insertOrder(sb, sbProfile.id, o).catch(() => {})
+              );
+            }
+          } else {
+            created.forEach(addOrder);
+          }
           setCart([]);
           setDiscount(null);
           setCodeInput("");

@@ -332,7 +332,7 @@ const sections: LegalSection[] = [
     content: (
       <p>
         Questions about these Terms? Contact us at{" "}
-        <a href="mailto:legal@leviio.app">legal@leviio.app</a> or via the
+        <a href="mailto:legal@leviio.com">legal@leviio.com</a> or via the
         support options in your dashboard.
       </p>
     ),

@@ -23,7 +23,7 @@ export default function StorePage() {
 
   const published = products.filter((p) => p.status === "Published");
   const accent = user?.bannerColor ?? "#7c3aed";
-  const storeUrl = `leviio.app/${user?.username ?? "username"}`;
+  const storeUrl = `leviio.com/${user?.username ?? "username"}`;
 
   const copyUrl = () => {
     navigator.clipboard?.writeText(`https://${storeUrl}`);

@@ -275,7 +275,7 @@ function BookingLinkDialog({
   onMarkBooked: (o: Order) => void;
 }) {
   const { toast } = useToast();
-  const [origin, setOrigin] = useState("https://leviio.app");
+  const [origin, setOrigin] = useState("https://leviio.com");
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {

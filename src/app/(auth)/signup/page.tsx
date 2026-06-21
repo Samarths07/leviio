@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, ShieldAlert } from "lucide-react";
 import { AuthSidePanel } from "@/components/auth/auth-side-panel";
 import { Logo } from "@/components/shared/logo";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,13 @@ import { Select } from "@/components/ui/select";
 import { useApp } from "@/lib/store";
 import { useToast } from "@/components/ui/toast";
 import { niches } from "@/lib/mock-data";
-import { LIMITS } from "@/lib/security";
+import {
+  LIMITS,
+  authLockStatus,
+  clearAuthAttempts,
+  formatRetry,
+  recordAuthAttempt,
+} from "@/lib/security";
 
 const schema = z
   .object({
@@ -37,6 +43,7 @@ export default function SignupPage() {
   const { toast } = useToast();
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [lockMsg, setLockMsg] = useState("");
 
   const {
     register,
@@ -44,13 +51,35 @@ export default function SignupPage() {
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
-  const onSubmit = (data: FormValues) => {
+  const onSubmit = async (data: FormValues) => {
+    // Rate limit: max 5 attempts / 15 minutes (client-side guard; Supabase also
+    // enforces signup limits server-side).
+    const status = authLockStatus();
+    if (!status.allowed) {
+      setLockMsg(`Too many attempts. Try again in ${formatRetry(status.retryAfterMs)}.`);
+      return;
+    }
+    setLockMsg("");
     setLoading(true);
-    setTimeout(() => {
-      signup({ name: data.name, email: data.email, niche: data.niche });
+    const ok = await signup({
+      name: data.name,
+      email: data.email,
+      niche: data.niche,
+      password: data.password,
+    });
+    if (ok) {
+      clearAuthAttempts();
       toast("Account created! Let's set you up.", { variant: "success" });
       router.push("/onboarding");
-    }, 700);
+    } else {
+      // Supabase reported an error or requires email confirmation — it already
+      // surfaced a toast. Count the failed attempt toward the limit.
+      const r = recordAuthAttempt();
+      if (!r.allowed) {
+        setLockMsg(`Too many attempts. Try again in ${formatRetry(r.retryAfterMs)}.`);
+      }
+      setLoading(false);
+    }
   };
 
   return (
@@ -136,6 +165,13 @@ export default function SignupPage() {
                 <p className="mt-1 text-xs text-danger">{errors.niche.message}</p>
               )}
             </div>
+
+            {lockMsg && (
+              <div className="flex items-start gap-2 rounded-lg border border-danger/30 bg-danger/10 p-3 text-xs">
+                <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
+                <span className="text-foreground">{lockMsg}</span>
+              </div>
+            )}
 
             <Button type="submit" size="lg" className="w-full" disabled={loading}>
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}

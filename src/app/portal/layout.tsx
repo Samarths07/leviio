@@ -25,11 +25,11 @@ export default function PortalLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { clientUser, clientLogout, user, hydrated } = useApp();
+  const { clientUser, clientLogout, user, hydrated, coach: portalCoach } = useApp();
 
   // The login page lives under /portal but must render without the shell/guard.
   const isLogin = pathname === "/portal/login";
-  const coach = user ?? seedCreator;
+  const coach = portalCoach ?? user ?? seedCreator;
 
   useEffect(() => {
     if (hydrated && !clientUser && !isLogin) router.replace("/portal/login");

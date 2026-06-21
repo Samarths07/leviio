@@ -16,7 +16,7 @@ export function ShareStoreDialog({
   username: string;
 }) {
   const { toast } = useToast();
-  const [origin, setOrigin] = useState("https://leviio.app");
+  const [origin, setOrigin] = useState("https://leviio.com");
   const [copied, setCopied] = useState(false);
   const [canNativeShare, setCanNativeShare] = useState(false);
 

@@ -20,7 +20,6 @@ import {
   products as seedProducts,
   transactions as seedOrders,
   workoutPrograms as seedPrograms,
-  DEMO_CREDENTIALS,
 } from "./mock-data";
 import type {
   CalendarEvent,
@@ -35,9 +34,20 @@ import type {
   Product,
   WorkoutProgram,
 } from "./types";
-import { newTrialExpiry } from "./utils";
+import { newTrialExpiry, uid } from "./utils";
 import { isOversized } from "./security";
 import { makeGuestClient } from "./portal";
+import { getSupabaseBrowser, isSupabaseConfigured } from "./supabase/config";
+import * as db from "./supabase/db";
+import type { Session } from "@supabase/supabase-js";
+
+/**
+ * The store runs in one of two modes (see src/lib/supabase/config.ts):
+ *  - Supabase mode  → real auth + database (production with env vars set).
+ *  - Mock mode      → localStorage + seed data (local dev / demo deploy).
+ * `USING_SUPABASE` is decided once from env at module load.
+ */
+const USING_SUPABASE = isSupabaseConfigured();
 
 /**
  * Normalizes a stored/seed creator into the current plan model.
@@ -101,15 +111,23 @@ function write(key: string, value: unknown) {
 
 interface AppContextValue {
   hydrated: boolean;
+  /** True when the store is backed by Supabase (vs. localStorage demo mode). */
+  usingSupabase: boolean;
   // auth
   user: Creator | null;
-  login: (email: string, password: string) => boolean;
-  signup: (data: Partial<Creator> & { name: string; email: string }) => void;
+  login: (email: string, password: string) => Promise<boolean>;
+  signup: (
+    data: Partial<Creator> & { name: string; email: string; password?: string }
+  ) => Promise<boolean>;
   logout: () => void;
   updateUser: (patch: Partial<Creator>) => void;
   // client portal auth (the customer side)
+  /** The signed-in client's coach (Supabase portal mode); null in mock mode. */
+  coach: Creator | null;
   clientUser: Client | null;
   clientLogin: (email: string) => Client | null;
+  /** Supabase portal: email a magic link to the client. Returns send status. */
+  clientLoginOtp: (email: string) => Promise<{ ok: boolean; error?: string }>;
   clientLogout: () => void;
   // products
   products: Product[];
@@ -159,10 +177,12 @@ const AppContext = createContext<AppContextValue | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
+  const sb = useMemo(() => getSupabaseBrowser(), []);
   const expiredNotified = useRef(false);
   const [hydrated, setHydrated] = useState(false);
   const [user, setUser] = useState<Creator | null>(null);
   const [clientUser, setClientUser] = useState<Client | null>(null);
+  const [coach, setCoach] = useState<Creator | null>(null);
   const [products, setProducts] = useState<Product[]>(seedProducts);
   const [clients, setClients] = useState<Client[]>(seedClients);
   const [mealPlans, setMealPlans] = useState<MealPlan[]>(seedMealPlans);
@@ -173,32 +193,173 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [orders, setOrders] = useState<Order[]>(seedOrders);
 
-  // Hydrate + seed from localStorage on mount
-  useEffect(() => {
-    const storedUser = read<Creator | null>(KEYS.auth, null);
-    if (storedUser) {
-      const normalized = normalizeUser(storedUser);
-      setUser(normalized);
-      write(KEYS.auth, normalized);
-    } else {
-      setUser(null);
-    }
-    setClientUser(read<Client | null>(KEYS.clientAuth, null));
-    setProducts(read(KEYS.products, seedProducts));
-    setClients(read(KEYS.clients, seedClients));
-    setMealPlans(read(KEYS.mealPlans, seedMealPlans));
-    setPrograms(read(KEYS.programs, seedPrograms));
-    setEvents(read(KEYS.events, seedEvents));
-    setConversations(read(KEYS.conversations, seedConversations));
-    setCart(read(KEYS.cart, []));
-    setOrders(read(KEYS.orders, seedOrders));
-    setHydrated(true);
+  // Surface a background-persistence failure without losing the optimistic UI.
+  const reportError = useCallback(
+    (err: unknown, what: string) => {
+      console.error(`[leviio] failed to save ${what}`, err);
+      toast(`Couldn't save ${what}. Check your connection.`, { variant: "error" });
+    },
+    [toast]
+  );
+
+  // Load every slice of a creator's data from Supabase into state.
+  const loadCreatorData = useCallback(
+    async (creatorId: string) => {
+      if (!sb) return;
+      const [prods, cls, meals, progs, evts, ords, convos] = await Promise.all([
+        db.listProducts(sb, creatorId),
+        db.listClients(sb, creatorId),
+        db.listMealPlans(sb, creatorId),
+        db.listPrograms(sb, creatorId),
+        db.listEvents(sb, creatorId),
+        db.listOrders(sb, creatorId),
+        db.listConversations(sb, creatorId),
+      ]);
+      setProducts(prods);
+      setClients(cls);
+      setMealPlans(meals);
+      setPrograms(progs);
+      setEvents(evts);
+      setOrders(ords);
+      setConversations(convos);
+    },
+    [sb]
+  );
+
+  // Clear every server-backed slice (used on logout / no session).
+  const clearData = useCallback(() => {
+    setProducts([]);
+    setClients([]);
+    setMealPlans([]);
+    setPrograms([]);
+    setEvents([]);
+    setOrders([]);
+    setConversations([]);
+    setCoach(null);
   }, []);
 
-  // Persisters
+  // Load the signed-in client's own data (orders, assigned plan/program,
+  // sessions, messages, coach) via the RLS-scoped client-portal queries.
+  const loadClientData = useCallback(
+    async (email: string) => {
+      if (!sb) return;
+      const managed = await db.getClientByEmail(sb, email);
+      const ords = await db.listOrdersByEmail(sb, email);
+      let resolved: Client | null = managed?.client ?? null;
+      let coachId: string | null = managed?.creatorId ?? null;
+      if (!resolved && ords.length) {
+        resolved = makeGuestClient(email, ords[0].client);
+        coachId = await db.getCoachIdByEmail(sb, email);
+      }
+      if (!resolved) {
+        setClientUser(null);
+        return;
+      }
+      setClientUser(resolved);
+      setOrders(ords);
+      setClients([resolved]);
+      setProducts([]);
+
+      const meals: MealPlan[] = [];
+      const progs: WorkoutProgram[] = [];
+      if (resolved.mealPlanId) {
+        const mp = await db.getMealPlan(sb, resolved.mealPlanId);
+        if (mp) meals.push(mp);
+      }
+      if (resolved.programId) {
+        const pr = await db.getProgram(sb, resolved.programId);
+        if (pr) progs.push(pr);
+      }
+      setMealPlans(meals);
+      setPrograms(progs);
+      setEvents(await db.listClientEvents(sb));
+      setConversations(await db.listClientConversations(sb));
+      // Coach is shown to the client → use the email-free public profile.
+      if (coachId) setCoach(await db.getPublicProfile(sb, coachId));
+    },
+    [sb]
+  );
+
+  // Interpret a Supabase session: a user WITH a profile is a creator; a user
+  // WITHOUT one is a portal client (magic-link). See supabase/schema.sql.
+  const applySession = useCallback(
+    async (session: Session | null) => {
+      if (!sb) return;
+      if (!session?.user) {
+        setUser(null);
+        setClientUser(null);
+        clearData();
+        return;
+      }
+      const profile = await db.getProfile(sb, session.user.id);
+      if (profile) {
+        setClientUser(null);
+        setCoach(null);
+        setUser(normalizeUser(profile));
+        await loadCreatorData(session.user.id);
+      } else if (session.user.email) {
+        setUser(null);
+        await loadClientData(session.user.email);
+      } else {
+        setUser(null);
+        setClientUser(null);
+        clearData();
+      }
+    },
+    [sb, clearData, loadCreatorData, loadClientData]
+  );
+
+  // ---- Hydration ----------------------------------------------------------
+  useEffect(() => {
+    // Mock mode: hydrate from localStorage + seeds (original behaviour).
+    if (!USING_SUPABASE || !sb) {
+      const storedUser = read<Creator | null>(KEYS.auth, null);
+      if (storedUser) {
+        const normalized = normalizeUser(storedUser);
+        setUser(normalized);
+        write(KEYS.auth, normalized);
+      } else {
+        setUser(null);
+      }
+      setClientUser(read<Client | null>(KEYS.clientAuth, null));
+      setProducts(read(KEYS.products, seedProducts));
+      setClients(read(KEYS.clients, seedClients));
+      setMealPlans(read(KEYS.mealPlans, seedMealPlans));
+      setPrograms(read(KEYS.programs, seedPrograms));
+      setEvents(read(KEYS.events, seedEvents));
+      setConversations(read(KEYS.conversations, seedConversations));
+      setCart(read(KEYS.cart, []));
+      setOrders(read(KEYS.orders, seedOrders));
+      setHydrated(true);
+      return;
+    }
+
+    // Supabase mode: resolve the current session, then subscribe to changes.
+    let active = true;
+    (async () => {
+      const {
+        data: { session },
+      } = await sb.auth.getSession();
+      if (!active) return;
+      await applySession(session);
+      setCart(read(KEYS.cart, []));
+      if (active) setHydrated(true);
+    })();
+
+    const { data: sub } = sb.auth.onAuthStateChange((_event, session) => {
+      if (active) applySession(session);
+    });
+
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
+  }, [sb, applySession]);
+
+  // ---- localStorage persistence (mock mode only; cart always) -------------
   const persist = useCallback(
     (key: string, value: unknown) => {
-      if (hydrated) write(key, value);
+      if (hydrated && !USING_SUPABASE) write(key, value);
     },
     [hydrated]
   );
@@ -212,14 +373,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     () => persist(KEYS.conversations, conversations),
     [conversations, persist]
   );
-  useEffect(() => persist(KEYS.cart, cart), [cart, persist]);
   useEffect(() => persist(KEYS.orders, orders), [orders, persist]);
-
-  // Cross-tab sync: when another tab/window updates a slice in localStorage,
-  // mirror it into this tab's state. This keeps the creator dashboard and the
-  // client portal in lock-step across windows — e.g. live two-way messaging.
+  // Cart persists locally in both modes (it's pre-checkout, client-only state).
   useEffect(() => {
-    if (!hydrated) return;
+    if (hydrated) write(KEYS.cart, cart);
+  }, [cart, hydrated]);
+
+  // Cross-tab sync via the Storage API — mock mode only. (In Supabase mode,
+  // cross-device sync would use Supabase Realtime; see README Phase B.)
+  useEffect(() => {
+    if (!hydrated || USING_SUPABASE) return;
     const onStorage = (e: StorageEvent) => {
       if (!e.key || e.newValue == null) return;
       let parsed: unknown;
@@ -282,7 +445,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
             trial: false,
             planExpiresAt: undefined,
           };
-          write(KEYS.auth, downgraded);
+          if (USING_SUPABASE && sb) {
+            db.updateProfile(sb, downgraded.id, {
+              plan: "Free",
+              trial: false,
+              planExpiresAt: undefined,
+            }).catch((e) => reportError(e, "your plan"));
+          } else {
+            write(KEYS.auth, downgraded);
+          }
           if (!expiredNotified.current) {
             expiredNotified.current = true;
             setTimeout(
@@ -301,34 +472,126 @@ export function AppProvider({ children }: { children: ReactNode }) {
     check();
     const id = setInterval(check, 30000);
     return () => clearInterval(id);
-  }, [hydrated, toast]);
+  }, [hydrated, toast, sb, reportError]);
 
-  // ---- auth ----
-  const login = useCallback((email: string, _password: string) => {
-    // Mock auth: preserve an existing account's plan/expiry; brand-new logins
-    // start on a fresh 1-month Pro trial (via normalizeUser).
-    const existing = read<Creator | null>(KEYS.auth, null);
-    const base = existing ?? seedCreator;
-    expiredNotified.current = false;
-    const u = normalizeUser({
-      ...base,
-      email: email || base.email || seedCreator.email,
-    });
-    setUser(u);
-    write(KEYS.auth, u);
-    return true;
-  }, []);
+  // ---- auth ---------------------------------------------------------------
+  const login = useCallback(
+    async (email: string, password: string): Promise<boolean> => {
+      expiredNotified.current = false;
+
+      if (USING_SUPABASE && sb) {
+        const { data, error } = await sb.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+        if (error || !data.user) return false;
+        let profile = await db.getProfile(sb, data.user.id);
+        if (!profile) {
+          // First login on a confirm-email project: create the profile now,
+          // backfilled from the metadata captured at signup.
+          const md = (data.user.user_metadata ?? {}) as {
+            name?: string;
+            username?: string;
+          };
+          const fallbackName =
+            md.name || data.user.email?.split("@")[0] || "Creator";
+          profile = {
+            id: data.user.id,
+            name: fallbackName,
+            email: data.user.email ?? email.trim(),
+            username:
+              md.username ||
+              fallbackName.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 16),
+            niche: "",
+            bio: "",
+            location: "",
+            avatarSeed: fallbackName,
+            bannerColor: "#7c3aed",
+            followers: 0,
+            plan: "Pro",
+            trial: true,
+            planExpiresAt: newTrialExpiry(),
+            socials: {},
+            isDemo: false,
+          };
+          await db.insertProfile(sb, profile).catch(() => {});
+        }
+        setUser(normalizeUser(profile));
+        await loadCreatorData(data.user.id);
+        return true;
+      }
+
+      // Mock auth: preserve an existing account's plan/expiry; brand-new logins
+      // start on a fresh 1-month Pro trial (via normalizeUser).
+      const existing = read<Creator | null>(KEYS.auth, null);
+      const base = existing ?? seedCreator;
+      const u = normalizeUser({
+        ...base,
+        email: email || base.email || seedCreator.email,
+      });
+      setUser(u);
+      write(KEYS.auth, u);
+      return true;
+    },
+    [sb, loadCreatorData]
+  );
 
   const signup = useCallback(
-    (data: Partial<Creator> & { name: string; email: string }) => {
-      // New sign-ups start their 1-month free Pro trial.
+    async (
+      data: Partial<Creator> & { name: string; email: string; password?: string }
+    ): Promise<boolean> => {
+      const username =
+        data.username ||
+        data.name.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 16);
+
+      if (USING_SUPABASE && sb) {
+        const { data: res, error } = await sb.auth.signUp({
+          email: data.email.trim(),
+          password: data.password ?? "",
+          options: { data: { name: data.name, username } },
+        });
+        if (error) {
+          toast(error.message, { variant: "error" });
+          return false;
+        }
+        // Email-confirmation projects return no session until the link is clicked.
+        if (!res.session) {
+          toast("Check your email to confirm your account, then log in.", {
+            variant: "info",
+          });
+          return false;
+        }
+        // Create the creator's profile row (the app, not a trigger, owns this).
+        const creator: Creator = {
+          id: res.user!.id,
+          name: data.name,
+          email: data.email.trim(),
+          username,
+          niche: data.niche ?? "",
+          bio: "",
+          location: "",
+          avatarSeed: data.name,
+          bannerColor: "#7c3aed",
+          followers: 0,
+          plan: "Pro",
+          trial: true,
+          planExpiresAt: newTrialExpiry(),
+          socials: {},
+          isDemo: false,
+        };
+        await db
+          .insertProfile(sb, creator)
+          .catch((e) => reportError(e, "your profile"));
+        setUser(normalizeUser(creator));
+        return true;
+      }
+
+      // Mock sign-up: start a 1-month free Pro trial.
       const u = normalizeUser({
         ...seedCreator,
         ...data,
         id: "creator_" + Math.random().toString(36).slice(2, 8),
-        username:
-          data.username ||
-          data.name.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 16),
+        username,
         isDemo: false,
         plan: "Pro",
         trial: true,
@@ -336,27 +599,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
       setUser(u);
       write(KEYS.auth, u);
+      return true;
     },
-    []
+    [sb, toast, reportError]
   );
 
   const logout = useCallback(() => {
     setUser(null);
-    write(KEYS.auth, null);
-  }, []);
+    if (USING_SUPABASE && sb) {
+      sb.auth.signOut();
+    } else {
+      write(KEYS.auth, null);
+    }
+  }, [sb]);
 
-  const updateUser = useCallback((patch: Partial<Creator>) => {
-    // Re-arm the expiry notification whenever the user (re)activates Pro.
-    if (patch.plan === "Pro") expiredNotified.current = false;
-    setUser((prev) => {
-      if (!prev) return prev;
-      const next = { ...prev, ...patch };
-      write(KEYS.auth, next);
-      return next;
-    });
-  }, []);
+  const updateUser = useCallback(
+    (patch: Partial<Creator>) => {
+      // Re-arm the expiry notification whenever the user (re)activates Pro.
+      if (patch.plan === "Pro") expiredNotified.current = false;
+      setUser((prev) => {
+        if (!prev) return prev;
+        const next = { ...prev, ...patch };
+        if (USING_SUPABASE && sb) {
+          db.updateProfile(sb, prev.id, patch).catch((e) =>
+            reportError(e, "your profile")
+          );
+        } else {
+          write(KEYS.auth, next);
+        }
+        return next;
+      });
+    },
+    [sb, reportError]
+  );
 
-  // ---- client portal auth ----
+  // ---- client portal auth -------------------------------------------------
   // Resolve a buyer email to a managed client, or (failing that) to a guest
   // client built from their storefront orders. Returns null if no purchases.
   const clientLogin = useCallback(
@@ -378,138 +655,236 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [clients, orders]
   );
 
+  // Supabase portal: send a passwordless magic link to the client's email.
+  const clientLoginOtp = useCallback(
+    async (email: string): Promise<{ ok: boolean; error?: string }> => {
+      if (!(USING_SUPABASE && sb))
+        return { ok: false, error: "Supabase not configured" };
+      const base =
+        process.env.NEXT_PUBLIC_SITE_URL ??
+        (typeof window !== "undefined" ? window.location.origin : "");
+      const { error } = await sb.auth.signInWithOtp({
+        email: email.trim(),
+        options: { emailRedirectTo: `${base}/portal` },
+      });
+      if (error) return { ok: false, error: error.message };
+      return { ok: true };
+    },
+    [sb]
+  );
+
   const clientLogout = useCallback(() => {
     setClientUser(null);
-    write(KEYS.clientAuth, null);
-  }, []);
+    setCoach(null);
+    if (USING_SUPABASE && sb) {
+      sb.auth.signOut();
+    } else {
+      write(KEYS.clientAuth, null);
+    }
+  }, [sb]);
 
-  // ---- products ----
+  // ---- products -----------------------------------------------------------
   const addProduct = useCallback(
-    (p: Product) => setProducts((prev) => [p, ...prev]),
-    []
+    (p: Product) => {
+      setProducts((prev) => [p, ...prev]);
+      if (USING_SUPABASE && sb && user)
+        db.upsertProduct(sb, user.id, p).catch((e) => reportError(e, "product"));
+    },
+    [sb, user, reportError]
   );
   const updateProduct = useCallback(
     (id: string, patch: Partial<Product>) =>
-      setProducts((prev) =>
-        prev.map((p) => (p.id === id ? { ...p, ...patch } : p))
-      ),
-    []
+      setProducts((prev) => {
+        const next = prev.map((p) => (p.id === id ? { ...p, ...patch } : p));
+        const updated = next.find((p) => p.id === id);
+        if (USING_SUPABASE && sb && user && updated)
+          db.upsertProduct(sb, user.id, updated).catch((e) =>
+            reportError(e, "product")
+          );
+        return next;
+      }),
+    [sb, user, reportError]
   );
   const deleteProduct = useCallback(
-    (id: string) => setProducts((prev) => prev.filter((p) => p.id !== id)),
-    []
+    (id: string) => {
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+      if (USING_SUPABASE && sb)
+        db.deleteProduct(sb, id).catch((e) => reportError(e, "product"));
+    },
+    [sb, reportError]
   );
 
-  // ---- clients ----
+  // ---- clients ------------------------------------------------------------
   const addClient = useCallback(
-    (c: Client) => setClients((prev) => [c, ...prev]),
-    []
+    (c: Client) => {
+      setClients((prev) => [c, ...prev]);
+      if (USING_SUPABASE && sb && user)
+        db.upsertClient(sb, user.id, c).catch((e) => reportError(e, "client"));
+    },
+    [sb, user, reportError]
   );
   const updateClient = useCallback(
     (id: string, patch: Partial<Client>) =>
-      setClients((prev) =>
-        prev.map((c) => (c.id === id ? { ...c, ...patch } : c))
-      ),
-    []
+      setClients((prev) => {
+        const next = prev.map((c) => (c.id === id ? { ...c, ...patch } : c));
+        const updated = next.find((c) => c.id === id);
+        if (USING_SUPABASE && sb && user && updated)
+          db.upsertClient(sb, user.id, updated).catch((e) =>
+            reportError(e, "client")
+          );
+        return next;
+      }),
+    [sb, user, reportError]
   );
 
-  // ---- meal plans ----
+  // ---- meal plans ---------------------------------------------------------
   const saveMealPlan = useCallback(
-    (p: MealPlan) =>
+    (p: MealPlan) => {
       setMealPlans((prev) => {
         const exists = prev.some((x) => x.id === p.id);
         return exists ? prev.map((x) => (x.id === p.id ? p : x)) : [p, ...prev];
-      }),
-    []
+      });
+      if (USING_SUPABASE && sb && user)
+        db.upsertMealPlan(sb, user.id, p).catch((e) =>
+          reportError(e, "meal plan")
+        );
+    },
+    [sb, user, reportError]
   );
   const deleteMealPlan = useCallback(
-    (id: string) => setMealPlans((prev) => prev.filter((p) => p.id !== id)),
-    []
+    (id: string) => {
+      setMealPlans((prev) => prev.filter((p) => p.id !== id));
+      if (USING_SUPABASE && sb)
+        db.deleteMealPlan(sb, id).catch((e) => reportError(e, "meal plan"));
+    },
+    [sb, reportError]
   );
 
-  // ---- programs ----
+  // ---- programs -----------------------------------------------------------
   const saveProgram = useCallback(
-    (p: WorkoutProgram) =>
+    (p: WorkoutProgram) => {
       setPrograms((prev) => {
         const exists = prev.some((x) => x.id === p.id);
         return exists ? prev.map((x) => (x.id === p.id ? p : x)) : [p, ...prev];
-      }),
-    []
+      });
+      if (USING_SUPABASE && sb && user)
+        db.upsertProgram(sb, user.id, p).catch((e) => reportError(e, "program"));
+    },
+    [sb, user, reportError]
   );
   const deleteProgram = useCallback(
-    (id: string) => setPrograms((prev) => prev.filter((p) => p.id !== id)),
-    []
+    (id: string) => {
+      setPrograms((prev) => prev.filter((p) => p.id !== id));
+      if (USING_SUPABASE && sb)
+        db.deleteProgram(sb, id).catch((e) => reportError(e, "program"));
+    },
+    [sb, reportError]
   );
 
-  // ---- events ----
+  // ---- events -------------------------------------------------------------
   const addEvent = useCallback(
-    (e: CalendarEvent) => setEvents((prev) => [...prev, e]),
-    []
+    (e: CalendarEvent) => {
+      setEvents((prev) => [...prev, e]);
+      if (USING_SUPABASE && sb && user)
+        db.upsertEvent(sb, user.id, e).catch((err) => reportError(err, "event"));
+    },
+    [sb, user, reportError]
   );
   const updateEvent = useCallback(
     (id: string, patch: Partial<CalendarEvent>) =>
-      setEvents((prev) =>
-        prev.map((e) => (e.id === id ? { ...e, ...patch } : e))
-      ),
-    []
+      setEvents((prev) => {
+        const next = prev.map((e) => (e.id === id ? { ...e, ...patch } : e));
+        const updated = next.find((e) => e.id === id);
+        if (USING_SUPABASE && sb && user && updated)
+          db.upsertEvent(sb, user.id, updated).catch((err) =>
+            reportError(err, "event")
+          );
+        return next;
+      }),
+    [sb, user, reportError]
   );
   const deleteEvent = useCallback(
-    (id: string) => setEvents((prev) => prev.filter((e) => e.id !== id)),
-    []
+    (id: string) => {
+      setEvents((prev) => prev.filter((e) => e.id !== id));
+      if (USING_SUPABASE && sb)
+        db.deleteEvent(sb, id).catch((err) => reportError(err, "event"));
+    },
+    [sb, reportError]
   );
 
-  // ---- conversations ----
+  // ---- conversations ------------------------------------------------------
   const sendMessage = useCallback(
-    (conversationId: string, text: string, from: "creator" | "client" = "creator") => {
+    (
+      conversationId: string,
+      text: string,
+      from: "creator" | "client" = "creator"
+    ) => {
       const msg: Message = {
-        id: "m_" + Math.random().toString(36).slice(2, 8),
+        id: uid("m"),
         from,
         text,
         time: "now",
       };
+      let nextUnread = 0;
       setConversations((prev) =>
-        prev.map((c) =>
-          c.id === conversationId
-            ? {
-                ...c,
-                messages: [...c.messages, msg],
-                // a client message is unread from the creator's perspective
-                unread: from === "client" ? c.unread + 1 : c.unread,
-              }
-            : c
-        )
+        prev.map((c) => {
+          if (c.id !== conversationId) return c;
+          nextUnread = from === "client" ? c.unread + 1 : c.unread;
+          return {
+            ...c,
+            messages: [...c.messages, msg],
+            // a client message is unread from the creator's perspective
+            unread: nextUnread,
+          };
+        })
       );
+      if (USING_SUPABASE && sb) {
+        db.insertMessage(sb, conversationId, msg).catch((e) =>
+          reportError(e, "message")
+        );
+        if (from === "client")
+          db.setConversationUnread(sb, conversationId, nextUnread).catch(() => {});
+      }
     },
-    []
+    [sb, reportError]
   );
-  const markRead = useCallback((conversationId: string) => {
-    setConversations((prev) =>
-      prev.map((c) => (c.id === conversationId ? { ...c, unread: 0 } : c))
-    );
-  }, []);
+  const markRead = useCallback(
+    (conversationId: string) => {
+      setConversations((prev) =>
+        prev.map((c) => (c.id === conversationId ? { ...c, unread: 0 } : c))
+      );
+      if (USING_SUPABASE && sb)
+        db.setConversationUnread(sb, conversationId, 0).catch(() => {});
+    },
+    [sb]
+  );
   // Find-or-create a thread for a client. Idempotent: a deterministic id keeps
   // repeated calls (and a follow-up sendMessage) pointing at the same thread.
-  const createConversation = useCallback((client: Client): string => {
-    const id = "conv_" + client.id;
-    setConversations((prev) => {
-      if (prev.some((c) => c.clientId === client.id)) return prev;
-      return [
-        {
-          id,
-          clientId: client.id,
-          clientName: client.name,
-          clientAvatar: client.avatarSeed,
-          unread: 0,
-          messages: [],
-        },
-        ...prev,
-      ];
-    });
-    const existing = conversations.find((c) => c.clientId === client.id);
-    return existing?.id ?? id;
-  }, [conversations]);
+  const createConversation = useCallback(
+    (client: Client): string => {
+      const existing = conversations.find((c) => c.clientId === client.id);
+      if (existing) return existing.id;
+      const conv: Conversation = {
+        id: "conv_" + client.id,
+        clientId: client.id,
+        clientName: client.name,
+        clientAvatar: client.avatarSeed,
+        unread: 0,
+        messages: [],
+      };
+      setConversations((prev) =>
+        prev.some((c) => c.clientId === client.id) ? prev : [conv, ...prev]
+      );
+      if (USING_SUPABASE && sb && user)
+        db.insertConversation(sb, user.id, conv).catch((e) =>
+          reportError(e, "conversation")
+        );
+      return conv.id;
+    },
+    [conversations, sb, user, reportError]
+  );
 
-  // ---- cart ----
+  // ---- cart (client-only, both modes) -------------------------------------
   const addToCart = useCallback((p: Product, qty = 1) => {
     setCart((prev) => {
       const existing = prev.find((i) => i.product.id === p.id);
@@ -533,29 +908,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
   const clearCart = useCallback(() => setCart([]), []);
 
-  // ---- orders ----
+  // ---- orders -------------------------------------------------------------
   const addOrder = useCallback(
-    (order: Order) => setOrders((prev) => [order, ...prev]),
-    []
+    (order: Order) => {
+      setOrders((prev) => [order, ...prev]);
+      if (USING_SUPABASE && sb && user)
+        db.insertOrder(sb, user.id, order).catch((e) => reportError(e, "order"));
+    },
+    [sb, user, reportError]
   );
   const updateOrder = useCallback(
-    (id: string, patch: Partial<Order>) =>
+    (id: string, patch: Partial<Order>) => {
       setOrders((prev) =>
         prev.map((o) => (o.id === id ? { ...o, ...patch } : o))
-      ),
-    []
+      );
+      if (USING_SUPABASE && sb)
+        db.updateOrder(sb, id, patch).catch((e) => reportError(e, "order"));
+    },
+    [sb, reportError]
   );
 
   const value = useMemo<AppContextValue>(
     () => ({
       hydrated,
+      usingSupabase: USING_SUPABASE,
       user,
       login,
       signup,
       logout,
       updateUser,
+      coach,
       clientUser,
       clientLogin,
+      clientLoginOtp,
       clientLogout,
       products,
       addProduct,
@@ -589,7 +974,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }),
     [
       hydrated, user, login, signup, logout, updateUser,
-      clientUser, clientLogin, clientLogout,
+      coach, clientUser, clientLogin, clientLoginOtp, clientLogout,
       products, addProduct, updateProduct, deleteProduct,
       clients, addClient, updateClient,
       mealPlans, saveMealPlan, deleteMealPlan,

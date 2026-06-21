@@ -26,7 +26,7 @@ export const LIMITS = {
  * Use on free-text before persisting. React already escapes on render, so this
  * is hardening against malformed payloads, not the primary XSS defense.
  */
-export function sanitizeText(value: string, max = LIMITS.short): string {
+export function sanitizeText(value: string, max: number = LIMITS.short): string {
   let out = "";
   for (const ch of value) {
     const code = ch.codePointAt(0) ?? 0;
@@ -37,7 +37,7 @@ export function sanitizeText(value: string, max = LIMITS.short): string {
 }
 
 /** True if a value is too large / malformed to safely persist. */
-export function isOversized(value: unknown, maxBytes = LIMITS.storageBytes): boolean {
+export function isOversized(value: unknown, maxBytes: number = LIMITS.storageBytes): boolean {
   try {
     return JSON.stringify(value).length > maxBytes;
   } catch {

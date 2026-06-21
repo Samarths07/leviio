@@ -13,6 +13,7 @@ import {
   Smile,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
+import { LIMITS } from "@/lib/security";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
@@ -150,6 +151,7 @@ export default function MessagesPage() {
                 </button>
                 <input
                   value={draft}
+                  maxLength={LIMITS.textarea}
                   onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && send()}
                   placeholder="Type a message..."

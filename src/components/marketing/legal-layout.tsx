@@ -71,8 +71,8 @@ export function LegalLayout({
 
           <div className="rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground">
             Questions about this document? Contact us at{" "}
-            <a href="mailto:legal@leviio.app" className="font-semibold text-primary hover:underline">
-              legal@leviio.app
+            <a href="mailto:legal@leviio.com" className="font-semibold text-primary hover:underline">
+              legal@leviio.com
             </a>
             . See also our{" "}
             <Link href="/privacy" className="font-semibold text-primary hover:underline">

@@ -37,7 +37,7 @@ create table if not exists public.profiles (
 -- products
 -- ---------------------------------------------------------------------------
 create table if not exists public.products (
-  id          uuid primary key default gen_random_uuid(),
+  id          text primary key default gen_random_uuid()::text,
   creator_id  uuid not null references public.profiles (id) on delete cascade,
   name        text not null,
   type        text not null check (type in ('Digital', 'Physical', 'Service', 'Membership')),
@@ -58,7 +58,7 @@ create index if not exists products_creator_idx on public.products (creator_id);
 -- clients  (the creator's coaching clients)
 -- ---------------------------------------------------------------------------
 create table if not exists public.clients (
-  id            uuid primary key default gen_random_uuid(),
+  id            text primary key default gen_random_uuid()::text,
   creator_id    uuid not null references public.profiles (id) on delete cascade,
   name          text not null,
   handle        text default '',
@@ -68,8 +68,8 @@ create table if not exists public.clients (
   status        text default 'Active' check (status in ('Active', 'Inactive', 'VIP')),
   avatar_seed   text default '',
   start_date    timestamptz default now(),
-  meal_plan_id  uuid,
-  program_id    uuid,
+  meal_plan_id  text,
+  program_id    text,
   notes         text default '',
   -- metrics: weighIns, measurements, sessions, payments, etc.
   metrics       jsonb default '{}'::jsonb,
@@ -82,7 +82,7 @@ create index if not exists clients_email_idx on public.clients (lower(email));
 -- meal_plans
 -- ---------------------------------------------------------------------------
 create table if not exists public.meal_plans (
-  id             uuid primary key default gen_random_uuid(),
+  id             text primary key default gen_random_uuid()::text,
   creator_id     uuid not null references public.profiles (id) on delete cascade,
   name           text not null,
   client         text,
@@ -100,7 +100,7 @@ create index if not exists meal_plans_creator_idx on public.meal_plans (creator_
 -- workout_programs
 -- ---------------------------------------------------------------------------
 create table if not exists public.workout_programs (
-  id            uuid primary key default gen_random_uuid(),
+  id            text primary key default gen_random_uuid()::text,
   creator_id    uuid not null references public.profiles (id) on delete cascade,
   name          text not null,
   goal          text default '',
@@ -118,11 +118,11 @@ create index if not exists programs_creator_idx on public.workout_programs (crea
 -- calendar_events
 -- ---------------------------------------------------------------------------
 create table if not exists public.calendar_events (
-  id           uuid primary key default gen_random_uuid(),
+  id           text primary key default gen_random_uuid()::text,
   creator_id   uuid not null references public.profiles (id) on delete cascade,
   title        text not null,
   type         text default 'Coaching Session',
-  client_id    uuid,
+  client_id    text,
   client_name  text,
   date         date not null,
   time         text default '09:00',
@@ -142,7 +142,7 @@ create table if not exists public.orders (
   client_name  text not null,
   client_email text,
   product      text not null,
-  product_id   uuid,
+  product_id   text,
   type         text,
   quantity     integer default 1,
   amount       numeric not null default 0,
@@ -162,9 +162,9 @@ create index if not exists orders_email_idx on public.orders (lower(client_email
 -- conversations + messages
 -- ---------------------------------------------------------------------------
 create table if not exists public.conversations (
-  id            uuid primary key default gen_random_uuid(),
+  id            text primary key default gen_random_uuid()::text,
   creator_id    uuid not null references public.profiles (id) on delete cascade,
-  client_id     uuid,
+  client_id     text,
   client_name   text not null,
   client_avatar text default '',
   unread        integer default 0,
@@ -173,8 +173,8 @@ create table if not exists public.conversations (
 create index if not exists conversations_creator_idx on public.conversations (creator_id);
 
 create table if not exists public.messages (
-  id              uuid primary key default gen_random_uuid(),
-  conversation_id uuid not null references public.conversations (id) on delete cascade,
+  id              text primary key default gen_random_uuid()::text,
+  conversation_id text not null references public.conversations (id) on delete cascade,
   sender          text not null check (sender in ('creator', 'client')),
   text            text not null,
   created_at      timestamptz default now()
@@ -198,9 +198,17 @@ alter table public.messages         enable row level security;
 create policy "own profile" on public.profiles
   for all using (auth.uid() = id) with check (auth.uid() = id);
 
--- Public can read a profile by username (needed for public storefronts).
-create policy "public read profiles" on public.profiles
-  for select using (true);
+-- Public storefronts need a creator's NON-sensitive profile fields (name, bio,
+-- avatar, etc.) but must NOT expose their email. A broad "public read" on the
+-- table would leak every creator's email to anyone with the anon key, so we
+-- instead publish a column-filtered VIEW and keep the base table readable only
+-- by its owner (the "own profile" policy above).
+create or replace view public.public_profiles as
+  select id, name, username, niche, bio, location,
+         avatar_seed, banner_color, followers, socials
+  from public.profiles;
+
+grant select on public.public_profiles to anon, authenticated;
 
 -- Helper macro-style policy: each creator-owned table is gated on creator_id.
 create policy "own products"  on public.products         for all using (auth.uid() = creator_id) with check (auth.uid() = creator_id);
@@ -221,34 +229,111 @@ create policy "public read published products" on public.products
   for select using (status = 'Published');
 
 -- ============================================================================
--- CLIENT PORTAL POLICIES (add when you wire client auth)
+-- STOREFRONT ORDER CREATION
 -- ----------------------------------------------------------------------------
--- Clients sign in too (magic link). Match the signed-in email to their rows so
--- they can read their own purchases / plans / messages. Example:
---
---   create policy "client reads own orders" on public.orders
---     for select using (lower(client_email) = lower(auth.jwt() ->> 'email'));
---
--- Mirror this for clients (email), and for messages/conversations via client_id.
+-- An anonymous storefront buyer must be able to create an order against a real
+-- creator. We allow inserts only when the target creator_id is a real profile.
+-- (When real payments go live, move this behind a server action using the
+-- service-role key for stronger guarantees.)
 -- ============================================================================
+create policy "storefront can create orders" on public.orders
+  for insert with check (
+    exists (select 1 from public.profiles p where p.id = creator_id)
+  );
 
--- Auto-create a profile row when a new auth user signs up.
-create or replace function public.handle_new_user()
-returns trigger language plpgsql security definer set search_path = public as $$
-begin
-  insert into public.profiles (id, name, email, username)
-  values (
-    new.id,
-    coalesce(new.raw_user_meta_data ->> 'name', split_part(new.email, '@', 1)),
-    new.email,
-    coalesce(new.raw_user_meta_data ->> 'username', split_part(new.email, '@', 1) || '-' || substr(new.id::text, 1, 6))
-  )
-  on conflict (id) do nothing;
-  return new;
-end;
-$$;
+-- ============================================================================
+-- CLIENT PORTAL POLICIES
+-- ----------------------------------------------------------------------------
+-- Clients sign in with a magic link (email OTP). We match the signed-in user's
+-- email to their rows so they can read their own purchases, plans and messages.
+-- ============================================================================
+-- A client reads order rows placed under their email.
+create policy "client reads own orders" on public.orders
+  for select using (lower(client_email) = lower(auth.jwt() ->> 'email'));
 
+-- A client updates their own order (e.g. booking a session date).
+create policy "client updates own orders" on public.orders
+  for update using (lower(client_email) = lower(auth.jwt() ->> 'email'))
+  with check (lower(client_email) = lower(auth.jwt() ->> 'email'));
+
+-- A client reads their own managed-client record.
+create policy "client reads self" on public.clients
+  for select using (lower(email) = lower(auth.jwt() ->> 'email'));
+
+-- A client reads a meal plan / program that is assigned to their client record.
+create policy "client reads assigned mealplan" on public.meal_plans
+  for select using (
+    exists (
+      select 1 from public.clients c
+      where c.meal_plan_id = meal_plans.id
+        and lower(c.email) = lower(auth.jwt() ->> 'email')
+    )
+  );
+create policy "client reads assigned program" on public.workout_programs
+  for select using (
+    exists (
+      select 1 from public.clients c
+      where c.program_id = workout_programs.id
+        and lower(c.email) = lower(auth.jwt() ->> 'email')
+    )
+  );
+
+-- A client reads calendar events booked for them.
+create policy "client reads own events" on public.calendar_events
+  for select using (
+    exists (
+      select 1 from public.clients c
+      where c.id = calendar_events.client_id
+        and lower(c.email) = lower(auth.jwt() ->> 'email')
+    )
+  );
+
+-- A client reads + writes their own conversation thread and its messages.
+create policy "client reads own convo" on public.conversations
+  for select using (
+    exists (
+      select 1 from public.clients c
+      where c.id = conversations.client_id
+        and lower(c.email) = lower(auth.jwt() ->> 'email')
+    )
+  );
+
+-- A client may bump the unread counter on their own thread (when they message).
+create policy "client updates own convo" on public.conversations
+  for update using (
+    exists (
+      select 1 from public.clients c
+      where c.id = conversations.client_id
+        and lower(c.email) = lower(auth.jwt() ->> 'email')
+    )
+  ) with check (
+    exists (
+      select 1 from public.clients c
+      where c.id = conversations.client_id
+        and lower(c.email) = lower(auth.jwt() ->> 'email')
+    )
+  );
+create policy "client rw own messages" on public.messages
+  for all using (
+    exists (
+      select 1 from public.conversations conv
+      join public.clients c on c.id = conv.client_id
+      where conv.id = messages.conversation_id
+        and lower(c.email) = lower(auth.jwt() ->> 'email')
+    )
+  ) with check (
+    sender = 'client' and exists (
+      select 1 from public.conversations conv
+      join public.clients c on c.id = conv.client_id
+      where conv.id = messages.conversation_id
+        and lower(c.email) = lower(auth.jwt() ->> 'email')
+    )
+  );
+
+-- NOTE: profiles are created by the app on CREATOR signup (see signup() in
+-- src/lib/store.tsx), not by a trigger. This is deliberate: "has a profile row"
+-- is how the app distinguishes a creator from a portal client (who signs in via
+-- magic link and never gets a profile). The drops below clean up any trigger
+-- from an earlier version of this schema.
 drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute function public.handle_new_user();
+drop function if exists public.handle_new_user();

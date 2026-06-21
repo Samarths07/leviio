@@ -27,9 +27,17 @@ import { Card } from "@/components/ui/card";
 import { cn, formatDate, formatTime } from "@/lib/utils";
 
 export default function PortalHome() {
-  const { clientUser, orders, mealPlans, programs, events, conversations, user } =
-    useApp();
-  const coach = user ?? seedCreator;
+  const {
+    clientUser,
+    orders,
+    mealPlans,
+    programs,
+    events,
+    conversations,
+    user,
+    coach: portalCoach,
+  } = useApp();
+  const coach = portalCoach ?? user ?? seedCreator;
 
   if (!clientUser) return null;
 

@@ -48,7 +48,7 @@ export function downloadDeliverable(opts: {
     `Issued:   ${new Date().toLocaleString()}`,
     "",
     "Your access link:",
-    `https://leviio.app/access/${opts.id.replace(/^#/, "")}`,
+    `https://leviio.com/access/${opts.id.replace(/^#/, "")}`,
     "",
     "Thank you for your purchase! 💜",
     "(Demo file — in production this would be your PDF, video course or ZIP.)",

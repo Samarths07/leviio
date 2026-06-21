@@ -19,17 +19,24 @@ export const metadata: Metadata = {
   title,
   description,
   applicationName: "Leviio",
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  },
   openGraph: {
     title,
     description,
     url: siteUrl,
     siteName: "Leviio",
     type: "website",
+    images: [{ url: "/logo.png", width: 1200, height: 1200, alt: "Leviio" }],
   },
   twitter: {
     card: "summary_large_image",
     title,
     description,
+    images: ["/logo.png"],
   },
 };
 

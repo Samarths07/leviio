@@ -19,7 +19,7 @@ export function InvitePortalDialog({
 }) {
   const { user } = useApp();
   const { toast } = useToast();
-  const [origin, setOrigin] = useState("https://leviio.app");
+  const [origin, setOrigin] = useState("https://leviio.com");
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {

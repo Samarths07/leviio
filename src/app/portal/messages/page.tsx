@@ -5,6 +5,7 @@ import { Paperclip, Send, Smile } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { creator as seedCreator } from "@/lib/mock-data";
 import { clientConversation } from "@/lib/portal";
+import { LIMITS } from "@/lib/security";
 import { useToast } from "@/components/ui/toast";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -12,10 +13,16 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 export default function PortalMessages() {
-  const { clientUser, conversations, user, sendMessage, createConversation } =
-    useApp();
+  const {
+    clientUser,
+    conversations,
+    user,
+    sendMessage,
+    createConversation,
+    coach: portalCoach,
+  } = useApp();
   const { toast } = useToast();
-  const coach = user ?? seedCreator;
+  const coach = portalCoach ?? user ?? seedCreator;
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -119,6 +126,7 @@ export default function PortalMessages() {
           </button>
           <input
             value={draft}
+            maxLength={LIMITS.textarea}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && send()}
             placeholder={`Message ${coach.name.split(" ")[0]}...`}

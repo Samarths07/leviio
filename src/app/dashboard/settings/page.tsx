@@ -159,7 +159,7 @@ function StoreTab({ user, onSave, toast }: any) {
           <div>
             <Label>Store slug</Label>
             <Input defaultValue={user.username} onBlur={(e) => onSave({ username: e.target.value })} />
-            <p className="mt-1 text-xs text-muted-foreground">leviio.app/{user.username}</p>
+            <p className="mt-1 text-xs text-muted-foreground">leviio.com/{user.username}</p>
           </div>
         </div>
         <div>

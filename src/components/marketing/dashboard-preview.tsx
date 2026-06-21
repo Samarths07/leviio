@@ -18,7 +18,7 @@ export function DashboardPreview() {
           <span className="h-2.5 w-2.5 rounded-full bg-warning/70" />
           <span className="h-2.5 w-2.5 rounded-full bg-success/70" />
           <span className="ml-3 rounded-md bg-white/[0.04] px-2 py-0.5 text-[10px] text-muted-foreground">
-            leviio.app/dashboard
+            leviio.com/dashboard
           </span>
         </div>
 

@@ -22,6 +22,7 @@ import { AvatarInitials } from "@/components/ui/avatar";
 import { useApp } from "@/lib/store";
 import { useToast } from "@/components/ui/toast";
 import { niches, themeSwatches } from "@/lib/mock-data";
+import { LIMITS } from "@/lib/security";
 import { cn } from "@/lib/utils";
 
 const steps = ["Profile", "Store", "Get Started"];
@@ -120,6 +121,7 @@ export default function OnboardingPage() {
                   <Label>Display name</Label>
                   <Input
                     value={profile.name}
+                    maxLength={LIMITS.name}
                     onChange={(e) => setProfile({ ...profile, name: e.target.value })}
                     placeholder="Alisha Fernandez"
                   />
@@ -127,9 +129,10 @@ export default function OnboardingPage() {
                 <div>
                   <Label>Username (store URL)</Label>
                   <div className="flex items-center rounded-lg border border-input bg-background pl-3 text-sm focus-within:border-primary/60">
-                    <span className="text-muted-foreground">leviio.app/</span>
+                    <span className="text-muted-foreground">leviio.com/</span>
                     <input
                       value={profile.username}
+                      maxLength={LIMITS.code}
                       onChange={(e) =>
                         setProfile({
                           ...profile,
@@ -146,6 +149,7 @@ export default function OnboardingPage() {
                 <Label>Bio</Label>
                 <Textarea
                   value={profile.bio}
+                  maxLength={LIMITS.bio}
                   onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
                   placeholder="Helping busy people get fit and feel confident..."
                   rows={3}
@@ -192,6 +196,7 @@ export default function OnboardingPage() {
                 <Label>Store tagline</Label>
                 <Input
                   value={store.tagline}
+                  maxLength={LIMITS.short}
                   onChange={(e) => setStore({ ...store, tagline: e.target.value })}
                   placeholder="Train smarter. Live stronger."
                 />
@@ -204,6 +209,7 @@ export default function OnboardingPage() {
                       <span className="w-20 text-sm capitalize text-muted-foreground">{s}</span>
                       <Input
                         value={store[s]}
+                        maxLength={LIMITS.short}
                         onChange={(e) => setStore({ ...store, [s]: e.target.value })}
                         placeholder={`@your${s}`}
                       />

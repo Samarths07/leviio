@@ -20,6 +20,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { LIMITS, sanitizeText } from "@/lib/security";
 
 const steps = ["Details", "Payment", "Delivery"];
 
@@ -73,10 +74,13 @@ export function CheckoutModal({
   };
 
   const pay = () => {
+    // Sanitize before persisting (strips control chars, caps length).
     const orders = onCheckout({
-      name: details.name || "Guest",
-      email: details.email,
-      address: details.address || undefined,
+      name: sanitizeText(details.name, LIMITS.name) || "Guest",
+      email: sanitizeText(details.email, LIMITS.email).toLowerCase(),
+      address: details.address
+        ? sanitizeText(details.address, LIMITS.short)
+        : undefined,
     });
     setCreated(orders);
     setStep(2);
@@ -113,11 +117,11 @@ export function CheckoutModal({
         <div className="space-y-4">
           <div>
             <Label>Full name</Label>
-            <Input value={details.name} onChange={(e) => setDetails({ ...details, name: e.target.value })} placeholder="Your name" />
+            <Input maxLength={LIMITS.name} value={details.name} onChange={(e) => setDetails({ ...details, name: e.target.value })} placeholder="Your name" />
           </div>
           <div>
             <Label>Email (where we send your downloads)</Label>
-            <Input type="email" value={details.email} onChange={(e) => setDetails({ ...details, email: e.target.value })} placeholder="you@email.com" />
+            <Input type="email" maxLength={LIMITS.email} value={details.email} onChange={(e) => setDetails({ ...details, email: e.target.value })} placeholder="you@email.com" />
           </div>
           {hasPhysical && (
             <div>
@@ -126,6 +130,7 @@ export function CheckoutModal({
                 value={details.address}
                 onChange={(e) => setDetails({ ...details, address: e.target.value })}
                 rows={2}
+                maxLength={LIMITS.short}
                 placeholder="Street, city, state, ZIP"
               />
               <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
