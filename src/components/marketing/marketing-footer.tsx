@@ -39,9 +39,8 @@ export function MarketingFooter() {
           <FooterCol
             title="Company"
             links={[
-              { label: "About", href: "#" },
-              { label: "Blog", href: "#" },
-              { label: "Careers", href: "#" },
+              { label: "About", href: "/about" },
+              { label: "Blog", href: "/blog" },
             ]}
           />
           <FooterCol
