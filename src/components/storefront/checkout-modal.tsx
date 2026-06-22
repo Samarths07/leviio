@@ -98,14 +98,9 @@ export function CheckoutModal({
 
     setPaying(true);
     const res = await payWithRazorpay<{ orders: Order[] }>({
-      orderPayload: { purpose: "storefront", creatorId, items: lineItems, discountCode },
-      verifyPayload: {
-        purpose: "storefront",
-        creatorId,
-        items: lineItems,
-        discountCode,
-        customer,
-      },
+      // Intent is stored server-side in the Razorpay order notes so the webhook
+      // can fulfill it even if the buyer closes the tab.
+      orderPayload: { purpose: "storefront", creatorId, items: lineItems, discountCode, customer },
       name: storeName,
       description: `${items.length} item${items.length === 1 ? "" : "s"} from ${storeName}`,
       prefill: { name: customer.name, email: customer.email },

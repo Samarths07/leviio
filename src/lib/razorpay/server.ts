@@ -6,6 +6,7 @@ import crypto from "crypto";
  */
 const KEY_ID = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
 const KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
+const WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET;
 const API = "https://api.razorpay.com/v1";
 
 export const RAZORPAY_KEY_ID = KEY_ID;
@@ -23,6 +24,7 @@ export interface RazorpayOrder {
   amount: number;
   currency: string;
   status: string;
+  notes?: Record<string, string>;
 }
 
 /** Create a Razorpay order for `amountPaise` (auto-captured on payment). */
@@ -70,6 +72,27 @@ export function verifyPaymentSignature(
   const expected = crypto
     .createHmac("sha256", KEY_SECRET)
     .update(`${orderId}|${paymentId}`)
+    .digest("hex");
+  try {
+    return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+  } catch {
+    return false;
+  }
+}
+
+export function razorpayWebhookConfigured(): boolean {
+  return Boolean(WEBHOOK_SECRET);
+}
+
+/**
+ * Verify a Razorpay webhook signature: HMAC-SHA256 of the RAW request body with
+ * the webhook secret, compared to the `x-razorpay-signature` header. Timing-safe.
+ */
+export function verifyWebhookSignature(rawBody: string, signature: string | null): boolean {
+  if (!WEBHOOK_SECRET || !signature) return false;
+  const expected = crypto
+    .createHmac("sha256", WEBHOOK_SECRET)
+    .update(rawBody)
     .digest("hex");
   try {
     return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));

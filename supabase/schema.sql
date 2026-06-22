@@ -156,10 +156,12 @@ create table if not exists public.orders (
   address      text,
   tracking     text,
   session_date timestamptz,
+  razorpay_order_id text,
   created_at   timestamptz default now()
 );
 create index if not exists orders_creator_idx on public.orders (creator_id);
 create index if not exists orders_email_idx on public.orders (lower(client_email));
+create index if not exists orders_rzp_idx on public.orders (razorpay_order_id);
 
 -- ---------------------------------------------------------------------------
 -- conversations + messages

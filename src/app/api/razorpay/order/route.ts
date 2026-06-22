@@ -76,11 +76,13 @@ export async function POST(req: Request) {
     }
 
     let subtotal = 0;
+    const compact: string[] = [];
     for (const it of items as { productId: unknown; quantity: unknown }[]) {
       const p = products.find((x) => x.id === String(it.productId));
       if (!p) continue;
       const qty = Math.max(1, Math.min(99, Number(it.quantity) || 1));
       subtotal += Number(p.price) * qty;
+      compact.push(`${p.id}:${qty}`);
     }
 
     const percent = discountCode ? findDiscount(discountCode)?.percent ?? 0 : 0;
@@ -89,9 +91,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid amount." }, { status: 400 });
     }
 
+    // Store the full intent in notes so the webhook can fulfill it server-side
+    // even if the buyer never returns to the browser. (256 chars/field.)
+    const customer = (body.customer ?? {}) as {
+      name?: string;
+      email?: string;
+      address?: string;
+    };
     const order = await createRazorpayOrder(amountInr * 100, {
       purpose: "storefront",
       creatorId,
+      items: compact.join(",").slice(0, 256),
+      discount: discountCode.slice(0, 40),
+      name: (customer.name ?? "").slice(0, 120),
+      email: (customer.email ?? "").slice(0, 120),
+      address: (customer.address ?? "").slice(0, 200),
     });
     return NextResponse.json({
       orderId: order.id,
