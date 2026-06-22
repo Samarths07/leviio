@@ -172,6 +172,7 @@ export function rowToProduct(r: Row): Product {
     revenue: (meta.revenue as number) ?? 0,
     imageSeed: (r.image_seed as string) ?? "",
     tags: (r.tags as string[]) ?? [],
+    imageUrl: meta.imageUrl as string | undefined,
     recurring: meta.recurring as boolean | undefined,
     badge: meta.badge as Product["badge"],
     rating: (meta.rating as number) ?? 0,
@@ -202,6 +203,7 @@ function productToRow(creatorId: string, p: Product): Row {
     meta: {
       sales: p.sales,
       revenue: p.revenue,
+      imageUrl: p.imageUrl,
       recurring: p.recurring,
       badge: p.badge,
       rating: p.rating,

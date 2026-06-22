@@ -372,3 +372,26 @@ create policy "avatars owner delete" on storage.objects
   for delete using (
     bucket_id = 'avatars' and auth.uid()::text = (storage.foldername(name))[1]
   );
+
+-- ============================================================================
+-- REALTIME: live messaging
+-- ----------------------------------------------------------------------------
+-- Add messaging tables to the realtime publication so the client receives
+-- inserts live (see the Realtime subscription in src/lib/store.tsx). RLS still
+-- applies, so each side only receives rows it's allowed to read.
+-- ============================================================================
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'messages'
+  ) then
+    alter publication supabase_realtime add table public.messages;
+  end if;
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'conversations'
+  ) then
+    alter publication supabase_realtime add table public.conversations;
+  end if;
+end $$;

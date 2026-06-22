@@ -49,6 +49,8 @@ export interface Product {
   sales: number;
   revenue: number;
   imageSeed: string;
+  /** Uploaded product image URL (Supabase Storage); falls back to a generated image. */
+  imageUrl?: string;
   tags: string[];
   recurring?: boolean;
   badge?: "BESTSELLER" | "NEW";

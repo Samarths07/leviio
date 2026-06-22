@@ -21,7 +21,7 @@ export function StoreProductCard({
     <div className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-all hover:-translate-y-0.5 hover:border-white/20">
       <div className="relative aspect-[4/3] overflow-hidden bg-secondary">
         <Image
-          src={img(product.imageSeed, 500, 380)}
+          src={product.imageUrl || img(product.imageSeed, 500, 380)}
           alt={product.name}
           fill
           sizes="(max-width:768px) 50vw, 33vw"

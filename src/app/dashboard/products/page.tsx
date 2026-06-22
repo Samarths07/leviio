@@ -134,7 +134,7 @@ function ProductsInner() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-secondary">
-                          <Image src={img(p.imageSeed, 88, 88)} alt={p.name} fill sizes="44px" className="object-cover" />
+                          <Image src={p.imageUrl || img(p.imageSeed, 88, 88)} alt={p.name} fill sizes="44px" className="object-cover" />
                         </div>
                         <div className="min-w-0">
                           <p className="line-clamp-1 font-semibold text-foreground">{p.name}</p>

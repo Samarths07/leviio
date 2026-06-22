@@ -357,6 +357,85 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(id);
   }, [hydrated, toast, sb, reportError]);
 
+  // ---- Realtime: live messaging -------------------------------------------
+  // Append messages/threads created by the other party without a refresh.
+  useEffect(() => {
+    if (!sb || !hydrated || (!user && !clientUser)) return;
+    const fmt = (iso?: string) => {
+      try {
+        return iso
+          ? new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+          : "now";
+      } catch {
+        return "now";
+      }
+    };
+    const channel = sb
+      .channel("rt-messages")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages" },
+        (payload) => {
+          const m = payload.new as {
+            id: string;
+            conversation_id: string;
+            sender: "creator" | "client";
+            text: string;
+            created_at: string;
+          };
+          setConversations((prev) =>
+            prev.map((c) => {
+              if (c.id !== m.conversation_id) return c;
+              if (c.messages.some((x) => x.id === m.id)) return c; // our own optimistic echo
+              return {
+                ...c,
+                messages: [
+                  ...c.messages,
+                  { id: m.id, from: m.sender, text: m.text, time: fmt(m.created_at) },
+                ],
+                // a client message is unread from the creator's perspective
+                unread: m.sender === "client" && !!user ? c.unread + 1 : c.unread,
+              };
+            })
+          );
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "conversations" },
+        (payload) => {
+          const conv = payload.new as {
+            id: string;
+            creator_id: string;
+            client_id: string;
+            client_name: string;
+            client_avatar: string;
+            unread: number;
+          };
+          if (!user || conv.creator_id !== user.id) return;
+          setConversations((prev) =>
+            prev.some((x) => x.id === conv.id)
+              ? prev
+              : [
+                  {
+                    id: conv.id,
+                    clientId: conv.client_id,
+                    clientName: conv.client_name,
+                    clientAvatar: conv.client_avatar,
+                    unread: conv.unread ?? 0,
+                    messages: [],
+                  },
+                  ...prev,
+                ]
+          );
+        }
+      )
+      .subscribe();
+    return () => {
+      sb.removeChannel(channel);
+    };
+  }, [sb, hydrated, user, clientUser]);
+
   // ---- auth ---------------------------------------------------------------
   const login = useCallback(
     async (email: string, password: string): Promise<boolean> => {

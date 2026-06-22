@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ImagePlus, Upload, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
+import { ImagePlus, Loader2, Upload, X } from "lucide-react";
 import type { Product, ProductCategory, ProductType } from "@/lib/types";
 import { cn, uid } from "@/lib/utils";
 import { Dialog } from "@/components/ui/dialog";
@@ -11,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { useApp } from "@/lib/store";
 import { useToast } from "@/components/ui/toast";
+import { uploadProductImage } from "@/lib/upload";
 
 const types: ProductType[] = ["Digital", "Physical", "Service", "Membership"];
 const categories: ProductCategory[] = ["Programs", "Nutrition", "Coaching", "Merch"];
@@ -24,6 +26,7 @@ const empty = {
   compareAt: "",
   status: "Draft" as Product["status"],
   tags: "",
+  imageUrl: "",
   fileType: "PDF",
   weight: "",
   sku: "",
@@ -42,10 +45,27 @@ export function ProductFormDialog({
   onClose: () => void;
   editing?: Product | null;
 }) {
-  const { addProduct, updateProduct } = useApp();
+  const { addProduct, updateProduct, user } = useApp();
   const { toast } = useToast();
   const [form, setForm] = useState({ ...empty });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const onPickImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !user) return;
+    setUploading(true);
+    const res = await uploadProductImage(user.id, file);
+    setUploading(false);
+    if (res.url) {
+      setForm((f) => ({ ...f, imageUrl: res.url! }));
+      toast("Image uploaded", { variant: "success" });
+    } else {
+      toast(res.error ?? "Upload failed", { variant: "error" });
+    }
+  };
 
   useEffect(() => {
     if (editing) {
@@ -58,6 +78,7 @@ export function ProductFormDialog({
         compareAt: editing.compareAt ? String(editing.compareAt) : "",
         status: editing.status,
         tags: editing.tags.join(", "),
+        imageUrl: editing.imageUrl ?? "",
         fileType: editing.fileType ?? "PDF",
         weight: editing.weight ?? "",
         sku: editing.sku ?? "",
@@ -95,6 +116,7 @@ export function ProductFormDialog({
       sales: editing?.sales ?? 0,
       revenue: editing?.revenue ?? 0,
       imageSeed: editing?.imageSeed ?? form.name.toLowerCase().replace(/\s/g, "-"),
+      imageUrl: form.imageUrl || undefined,
       tags: form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
       recurring: form.type === "Membership" || form.type === "Service",
       rating: editing?.rating ?? 0,
@@ -269,9 +291,33 @@ export function ProductFormDialog({
 
         <div>
           <Label>Thumbnail</Label>
-          <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-background/40 py-6 text-sm text-muted-foreground">
-            <ImagePlus className="h-4 w-4" /> Upload thumbnail (demo placeholder)
-          </div>
+          <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickImage} />
+          {form.imageUrl ? (
+            <div className="flex items-center gap-3">
+              <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-border">
+                <Image src={form.imageUrl} alt="Thumbnail" fill sizes="80px" className="object-cover" />
+              </div>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" size="sm" disabled={uploading} onClick={() => fileRef.current?.click()}>
+                  {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+                  Replace
+                </Button>
+                <Button type="button" variant="ghost" size="sm" onClick={() => set({ imageUrl: "" })}>
+                  Remove
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={uploading}
+              onClick={() => fileRef.current?.click()}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-background/40 py-6 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+            >
+              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+              {uploading ? "Uploading..." : "Upload thumbnail"}
+            </button>
+          )}
         </div>
 
         <div className="flex gap-3 pt-1">
