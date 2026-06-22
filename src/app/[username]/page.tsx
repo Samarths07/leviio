@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
+  ArrowLeft,
   BadgeCheck,
   Instagram,
   Loader2,
@@ -18,6 +19,7 @@ import {
 import { creator as seedCreator, findDiscount, storeReviews, type DiscountCode } from "@/lib/mock-data";
 import type { CartItem, Creator, Product } from "@/lib/types";
 import { compactNumber, formatCurrency } from "@/lib/utils";
+import { useApp } from "@/lib/store";
 import { getSupabaseBrowser } from "@/lib/supabase/config";
 import * as db from "@/lib/supabase/db";
 import { Logo } from "@/components/shared/logo";
@@ -35,6 +37,7 @@ const tabs = ["All", "Programs", "Nutrition", "Coaching", "Merch"];
 
 export default function StorefrontPage() {
   const { toast } = useToast();
+  const { user } = useApp();
   const params = useParams();
   const username =
     typeof params?.username === "string"
@@ -146,14 +149,25 @@ export default function StorefrontPage() {
       {/* Minimal nav */}
       <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
-          <Logo />
+          <Logo href={user ? "/dashboard" : "/"} />
           <div className="flex items-center gap-2">
-            <Link href="/portal" className="hidden text-sm font-semibold text-muted-foreground hover:text-foreground sm:block">
-              My purchases
-            </Link>
-            <Link href="/signup" className="hidden text-sm font-semibold text-muted-foreground hover:text-foreground sm:block">
-              Sign up to sell
-            </Link>
+            {user ? (
+              <Link
+                href="/dashboard"
+                className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft className="h-4 w-4" /> Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link href="/portal" className="hidden text-sm font-semibold text-muted-foreground hover:text-foreground sm:block">
+                  My purchases
+                </Link>
+                <Link href="/signup" className="hidden text-sm font-semibold text-muted-foreground hover:text-foreground sm:block">
+                  Sign up to sell
+                </Link>
+              </>
+            )}
             <button
               onClick={() => setCartOpen(true)}
               aria-label="Cart"
