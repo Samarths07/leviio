@@ -137,8 +137,11 @@ export default function StorefrontPage() {
           We couldn&apos;t find a creator at{" "}
           <span className="font-semibold">/{username}</span>.
         </p>
-        <Link href="/" className="mt-1 text-sm font-semibold text-primary hover:underline">
-          Go home
+        <Link
+          href={user ? "/dashboard" : "/"}
+          className="mt-1 text-sm font-semibold text-primary hover:underline"
+        >
+          {user ? "Back to dashboard" : "Go home"}
         </Link>
       </div>
     );
