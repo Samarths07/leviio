@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Copy, Mail, MessageCircle, ShieldCheck } from "lucide-react";
+import { Check, Copy, Loader2, Mail, MessageCircle, ShieldCheck } from "lucide-react";
 import type { Client } from "@/lib/types";
 import { useApp } from "@/lib/store";
 import { Dialog } from "@/components/ui/dialog";
@@ -21,6 +21,27 @@ export function InvitePortalDialog({
   const { toast } = useToast();
   const [origin, setOrigin] = useState("https://leviio.com");
   const [copied, setCopied] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  const sendEmailInvite = async () => {
+    setSending(true);
+    try {
+      const res = await fetch("/api/email/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: client.email }),
+      });
+      if (res.ok) {
+        toast(`Invite emailed to ${client.email}`, { variant: "success" });
+      } else {
+        const j = await res.json().catch(() => ({}));
+        toast(j.error ?? "Couldn't send invite", { variant: "error" });
+      }
+    } catch {
+      toast("Couldn't send invite", { variant: "error" });
+    }
+    setSending(false);
+  };
 
   useEffect(() => {
     if (typeof window !== "undefined") setOrigin(window.location.origin);
@@ -87,8 +108,15 @@ export function InvitePortalDialog({
         </Button>
       </div>
 
-      {/* Send channels */}
-      <div className="mt-3 grid grid-cols-2 gap-2">
+      {/* Send a real email invite */}
+      <Button className="mt-3 w-full" onClick={sendEmailInvite} disabled={sending}>
+        {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+        {sending ? "Sending..." : `Email invite to ${first}`}
+      </Button>
+
+      {/* Or share manually */}
+      <p className="mt-3 text-center text-xs text-muted-foreground">or share manually</p>
+      <div className="mt-2 grid grid-cols-2 gap-2">
         {channels.map((c) => (
           <button
             key={c.label}

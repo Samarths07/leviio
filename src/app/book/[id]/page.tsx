@@ -77,6 +77,15 @@ export default function BookingPage() {
       updateOrder(order.id, { fulfillment: "Booked", sessionDate });
       setSaving(false);
       toast("Session booked! 🎉", { variant: "success" });
+      // Send a confirmation email (best-effort; no-ops if email isn't set up).
+      fetch("/api/email/booking", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: order.id,
+          dateLabel: `${formatDate(dateStr, "long")} at ${formatTime(time)}`,
+        }),
+      }).catch(() => {});
     }, 500);
   };
 

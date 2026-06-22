@@ -4,6 +4,8 @@ import { rowToOrder } from "@/lib/supabase/db";
 import { findDiscount } from "@/lib/mock-data";
 import { newTrialExpiry } from "@/lib/utils";
 import { PRO_PERIOD_DAYS } from "@/lib/billing";
+import { sendEmail } from "@/lib/email/send";
+import { orderReceiptEmail } from "@/lib/email/templates";
 import type { Fulfillment, Order, ProductType } from "@/lib/types";
 
 /**
@@ -122,6 +124,25 @@ export async function fulfillRazorpayOrder(orderId: string): Promise<FulfillResu
 
     const { error } = await admin.from("orders").insert(rows);
     if (error) return { ok: false, error: error.message };
+
+    // Email the receipt (best-effort — never blocks fulfilment).
+    if (notes.email) {
+      const { data: prof } = await admin
+        .from("profiles")
+        .select("name")
+        .eq("id", creatorId)
+        .maybeSingle();
+      const base = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+      const tmpl = orderReceiptEmail({
+        customerName: notes.name || "there",
+        storeName: (prof?.name as string) || "your coach",
+        orders: rows.map((r) => ({ product: r.product, quantity: r.quantity, amount: r.amount })),
+        total: rows.reduce((s, r) => s + r.amount, 0),
+        portalUrl: `${base}/portal`,
+      });
+      sendEmail({ to: notes.email, subject: tmpl.subject, html: tmpl.html }).catch(() => {});
+    }
+
     return { ok: true, orders: rows.map(rowToOrder) };
   }
 
