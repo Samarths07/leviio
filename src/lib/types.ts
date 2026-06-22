@@ -58,6 +58,10 @@ export interface Product {
   reviewCount: number;
   // type-specific
   fileType?: string;
+  /** Private storage path of the uploaded deliverable (digital products). */
+  filePath?: string;
+  /** Original filename of the deliverable, for display. */
+  fileName?: string;
   weight?: string;
   sku?: string;
   stock?: number;

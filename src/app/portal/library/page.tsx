@@ -14,11 +14,7 @@ import {
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { matchOrders } from "@/lib/portal";
-import {
-  downloadDeliverable,
-  fulfillmentVariant,
-  orderType,
-} from "@/lib/delivery";
+import { fulfillmentVariant, orderType } from "@/lib/delivery";
 import type { Order } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -177,13 +173,14 @@ function LibraryCard({
         {type === "Digital" && (
           <Button
             size="sm"
-            onClick={() => {
-              downloadDeliverable({
-                product: order.product,
-                id: order.id,
-                client: order.client,
-              });
-              toast("Access file downloaded", { variant: "success" });
+            onClick={async () => {
+              const res = await fetch(`/api/download?orderId=${order.id}`);
+              const j = await res.json().catch(() => ({}));
+              if (res.ok && j.url) {
+                window.location.href = j.url;
+              } else {
+                toast(j.error ?? "Download unavailable", { variant: "error" });
+              }
             }}
           >
             {isVideo ? (

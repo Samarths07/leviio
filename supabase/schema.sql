@@ -375,6 +375,23 @@ create policy "avatars owner delete" on storage.objects
     bucket_id = 'avatars' and auth.uid()::text = (storage.foldername(name))[1]
   );
 
+-- ----------------------------------------------------------------------------
+-- STORAGE: product-files bucket (PRIVATE — digital product deliverables)
+-- Not public. Buyers download via short-lived signed URLs from /api/download
+-- after an ownership check; only the owning creator can read/write directly.
+-- ----------------------------------------------------------------------------
+insert into storage.buckets (id, name, public)
+values ('product-files', 'product-files', false)
+on conflict (id) do nothing;
+
+drop policy if exists "product-files owner all" on storage.objects;
+create policy "product-files owner all" on storage.objects
+  for all using (
+    bucket_id = 'product-files' and auth.uid()::text = (storage.foldername(name))[1]
+  ) with check (
+    bucket_id = 'product-files' and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
 -- ============================================================================
 -- REALTIME: live messaging
 -- ----------------------------------------------------------------------------

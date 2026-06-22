@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { ImagePlus, Loader2, Upload, X } from "lucide-react";
+import { FileText, ImagePlus, Loader2, Upload, X } from "lucide-react";
 import type { Product, ProductCategory, ProductType } from "@/lib/types";
 import { cn, uid } from "@/lib/utils";
 import { Dialog } from "@/components/ui/dialog";
@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { useApp } from "@/lib/store";
 import { useToast } from "@/components/ui/toast";
-import { uploadProductImage } from "@/lib/upload";
+import { uploadProductImage, uploadProductFile } from "@/lib/upload";
 
 const types: ProductType[] = ["Digital", "Physical", "Service", "Membership"];
 const categories: ProductCategory[] = ["Programs", "Nutrition", "Coaching", "Merch"];
@@ -27,6 +27,8 @@ const empty = {
   status: "Draft" as Product["status"],
   tags: "",
   imageUrl: "",
+  filePath: "",
+  fileName: "",
   fileType: "PDF",
   weight: "",
   sku: "",
@@ -67,6 +69,23 @@ export function ProductFormDialog({
     }
   };
 
+  const [fileUploading, setFileUploading] = useState(false);
+  const docRef = useRef<HTMLInputElement>(null);
+  const onPickFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !user) return;
+    setFileUploading(true);
+    const res = await uploadProductFile(user.id, file);
+    setFileUploading(false);
+    if (res.path) {
+      setForm((f) => ({ ...f, filePath: res.path!, fileName: res.name || "file" }));
+      toast("File uploaded", { variant: "success" });
+    } else {
+      toast(res.error ?? "Upload failed", { variant: "error" });
+    }
+  };
+
   useEffect(() => {
     if (editing) {
       setForm({
@@ -79,6 +98,8 @@ export function ProductFormDialog({
         status: editing.status,
         tags: editing.tags.join(", "),
         imageUrl: editing.imageUrl ?? "",
+        filePath: editing.filePath ?? "",
+        fileName: editing.fileName ?? "",
         fileType: editing.fileType ?? "PDF",
         weight: editing.weight ?? "",
         sku: editing.sku ?? "",
@@ -122,6 +143,8 @@ export function ProductFormDialog({
       rating: editing?.rating ?? 0,
       reviewCount: editing?.reviewCount ?? 0,
       fileType: form.type === "Digital" ? form.fileType : undefined,
+      filePath: form.type === "Digital" ? form.filePath || undefined : undefined,
+      fileName: form.type === "Digital" ? form.fileName || undefined : undefined,
       weight: form.type === "Physical" ? form.weight : undefined,
       sku: form.type === "Physical" ? form.sku : undefined,
       stock: form.type === "Physical" ? Number(form.stock) || 0 : undefined,
@@ -225,9 +248,30 @@ export function ProductFormDialog({
               <option>PDF + Video</option>
               <option>ZIP</option>
             </Select>
-            <div className="mt-3 flex items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-background/40 py-6 text-sm text-muted-foreground">
-              <Upload className="h-4 w-4" /> Drop file or click to upload (demo)
-            </div>
+            <input ref={docRef} type="file" hidden onChange={onPickFile} />
+            {form.fileName ? (
+              <div className="mt-3 flex items-center gap-2 rounded-lg border border-border bg-background/40 px-3 py-2.5 text-sm">
+                <FileText className="h-4 w-4 shrink-0 text-success" />
+                <span className="truncate text-foreground">{form.fileName}</span>
+                <button
+                  type="button"
+                  onClick={() => docRef.current?.click()}
+                  className="ml-auto shrink-0 text-xs font-semibold text-primary hover:underline"
+                >
+                  Replace
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                disabled={fileUploading}
+                onClick={() => docRef.current?.click()}
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-background/40 py-6 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+              >
+                {fileUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                {fileUploading ? "Uploading..." : "Upload deliverable file (PDF/ZIP, max 50MB)"}
+              </button>
+            )}
           </div>
         )}
         {form.type === "Physical" && (

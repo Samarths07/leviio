@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import type { CartItem, Order } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
-import { downloadDeliverable } from "@/lib/delivery";
 import { payWithRazorpay } from "@/lib/razorpay";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -245,13 +244,14 @@ export function CheckoutModal({
                 </div>
 
                 {(o.type === "Digital" || o.type === "Membership") && (
-                  <button
-                    onClick={() => downloadDeliverable({ product: o.product, id: o.id, client: o.client })}
+                  <Link
+                    href="/portal/login"
+                    onClick={close}
                     className="mt-2 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-white"
                     style={{ backgroundColor: accent }}
                   >
-                    <Download className="h-3.5 w-3.5" /> Download / Get access
-                  </button>
+                    <Download className="h-3.5 w-3.5" /> Sign in to download
+                  </Link>
                 )}
                 {o.type === "Physical" && (
                   <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
