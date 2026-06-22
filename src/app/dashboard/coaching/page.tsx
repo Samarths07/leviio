@@ -24,10 +24,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog } from "@/components/ui/dialog";
 
 export default function CoachingPage() {
-  const { clients, events } = useApp();
+  const { clients, events, user, updateUser } = useApp();
   const { toast } = useToast();
-  const [packages, setPackages] = useState<CoachingPackage[]>([]);
-  const [notes, setNotes] = useState<SessionNote[]>([]);
+  const packages = user?.coachingPackages ?? [];
+  const notes = user?.sessionNotes ?? [];
   const [editing, setEditing] = useState<CoachingPackage | null>(null);
   const [pkgOpen, setPkgOpen] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
@@ -188,11 +188,10 @@ export default function CoachingPage() {
         onClose={() => setPkgOpen(false)}
         editing={editing}
         onSave={(pkg) => {
-          setPackages((prev) =>
-            prev.some((p) => p.id === pkg.id)
-              ? prev.map((p) => (p.id === pkg.id ? pkg : p))
-              : [...prev, pkg]
-          );
+          const next = packages.some((p) => p.id === pkg.id)
+            ? packages.map((p) => (p.id === pkg.id ? pkg : p))
+            : [...packages, pkg];
+          updateUser({ coachingPackages: next });
           toast(editing ? "Package updated" : "Package created", { variant: "success" });
           setPkgOpen(false);
         }}
@@ -203,10 +202,11 @@ export default function CoachingPage() {
         open={noteOpen}
         onClose={() => setNoteOpen(false)}
         onSave={(clientName, clientAvatar, text) => {
-          setNotes((prev) => [
+          const next: SessionNote[] = [
             { id: uid("note"), clientId: "", clientName, clientAvatar, date: new Date().toISOString(), note: text },
-            ...prev,
-          ]);
+            ...notes,
+          ];
+          updateUser({ sessionNotes: next });
           toast("Note added", { variant: "success" });
           setNoteOpen(false);
         }}

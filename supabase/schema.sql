@@ -30,8 +30,10 @@ create table if not exists public.profiles (
   plan            text default 'Free' check (plan in ('Free', 'Pro')),
   plan_expires_at timestamptz,
   trial           boolean default false,
-  socials         jsonb default '{}'::jsonb,
-  created_at      timestamptz default now()
+  socials           jsonb default '{}'::jsonb,
+  coaching_packages jsonb default '[]'::jsonb,
+  session_notes     jsonb default '[]'::jsonb,
+  created_at        timestamptz default now()
 );
 
 -- ---------------------------------------------------------------------------

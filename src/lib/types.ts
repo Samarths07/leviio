@@ -26,6 +26,9 @@ export interface Creator {
     twitter?: string;
     website?: string;
   };
+  /** Coaching offerings + freeform session notes (creator-managed, stored on profile). */
+  coachingPackages?: CoachingPackage[];
+  sessionNotes?: SessionNote[];
   isDemo?: boolean;
 }
 

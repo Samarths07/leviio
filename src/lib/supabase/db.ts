@@ -2,12 +2,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   CalendarEvent,
   Client,
+  CoachingPackage,
   Conversation,
   Creator,
   MealPlan,
   Message,
   Order,
   Product,
+  SessionNote,
   WorkoutProgram,
 } from "@/lib/types";
 import { isOversized } from "@/lib/security";
@@ -22,6 +24,14 @@ function assertSize(value: unknown, what: string): void {
   if (isOversized(value)) {
     throw new Error(`This ${what} is too large to save.`);
   }
+}
+
+/**
+ * Throw on a Supabase write error so the caller's `.catch(reportError)` surfaces
+ * it as a toast — no more silent save failures.
+ */
+function done(res: { error: { message: string } | null }, what: string): void {
+  if (res.error) throw new Error(`Couldn't save ${what}: ${res.error.message}`);
 }
 
 /**
@@ -64,6 +74,8 @@ export function rowToCreator(r: Row): Creator {
     planExpiresAt: (r.plan_expires_at as string) ?? undefined,
     trial: (r.trial as boolean) ?? false,
     socials: (r.socials as Creator["socials"]) ?? {},
+    coachingPackages: (r.coaching_packages as CoachingPackage[]) ?? [],
+    sessionNotes: (r.session_notes as SessionNote[]) ?? [],
     isDemo: false,
   };
 }
@@ -85,6 +97,8 @@ function creatorToProfileRow(c: Partial<Creator>): Row {
   if (c.planExpiresAt !== undefined) row.plan_expires_at = c.planExpiresAt ?? null;
   if (c.trial !== undefined) row.trial = c.trial;
   if (c.socials !== undefined) row.socials = c.socials;
+  if (c.coachingPackages !== undefined) row.coaching_packages = c.coachingPackages;
+  if (c.sessionNotes !== undefined) row.session_notes = c.sessionNotes;
   return row;
 }
 
@@ -130,7 +144,7 @@ export async function updateProfile(
   assertSize(patch, "profile");
   const row = creatorToProfileRow(patch);
   delete row.id;
-  await sb.from("profiles").update(row).eq("id", id);
+  done(await sb.from("profiles").update(row).eq("id", id), "profile");
 }
 
 /** Create a creator's profile row (called once on signup). Idempotent upsert. */
@@ -230,11 +244,11 @@ export async function upsertProduct(
   p: Product
 ): Promise<void> {
   assertSize(p, "product");
-  await sb.from("products").upsert(productToRow(creatorId, p));
+  done(await sb.from("products").upsert(productToRow(creatorId, p)), "product");
 }
 
 export async function deleteProduct(sb: SupabaseClient, id: string): Promise<void> {
-  await sb.from("products").delete().eq("id", id);
+  done(await sb.from("products").delete().eq("id", id), "product");
 }
 
 // ---------------------------------------------------------------------------
@@ -339,7 +353,7 @@ export async function upsertClient(
   c: Client
 ): Promise<void> {
   assertSize(c, "client");
-  await sb.from("clients").upsert(clientToRow(creatorId, c));
+  done(await sb.from("clients").upsert(clientToRow(creatorId, c)), "client");
 }
 
 // ---------------------------------------------------------------------------
@@ -391,7 +405,7 @@ export async function upsertMealPlan(
   p: MealPlan
 ): Promise<void> {
   assertSize(p, "meal plan");
-  await sb.from("meal_plans").upsert(mealPlanToRow(creatorId, p));
+  done(await sb.from("meal_plans").upsert(mealPlanToRow(creatorId, p)), "meal plan");
 }
 
 /** Client-portal: read a single meal plan assigned to the signed-in client. */
@@ -404,7 +418,7 @@ export async function getMealPlan(
 }
 
 export async function deleteMealPlan(sb: SupabaseClient, id: string): Promise<void> {
-  await sb.from("meal_plans").delete().eq("id", id);
+  done(await sb.from("meal_plans").delete().eq("id", id), "meal plan");
 }
 
 // ---------------------------------------------------------------------------
@@ -459,7 +473,7 @@ export async function upsertProgram(
   p: WorkoutProgram
 ): Promise<void> {
   assertSize(p, "program");
-  await sb.from("workout_programs").upsert(programToRow(creatorId, p));
+  done(await sb.from("workout_programs").upsert(programToRow(creatorId, p)), "program");
 }
 
 /** Client-portal: read a single workout program assigned to the signed-in client. */
@@ -476,7 +490,7 @@ export async function getProgram(
 }
 
 export async function deleteProgram(sb: SupabaseClient, id: string): Promise<void> {
-  await sb.from("workout_programs").delete().eq("id", id);
+  done(await sb.from("workout_programs").delete().eq("id", id), "program");
 }
 
 // ---------------------------------------------------------------------------
@@ -532,11 +546,11 @@ export async function upsertEvent(
   e: CalendarEvent
 ): Promise<void> {
   assertSize(e, "event");
-  await sb.from("calendar_events").upsert(eventToRow(creatorId, e));
+  done(await sb.from("calendar_events").upsert(eventToRow(creatorId, e)), "event");
 }
 
 export async function deleteEvent(sb: SupabaseClient, id: string): Promise<void> {
-  await sb.from("calendar_events").delete().eq("id", id);
+  done(await sb.from("calendar_events").delete().eq("id", id), "event");
 }
 
 // ---------------------------------------------------------------------------
@@ -607,7 +621,7 @@ export async function insertOrder(
   o: Order
 ): Promise<void> {
   assertSize(o, "order");
-  await sb.from("orders").insert(orderToRow(creatorId, o));
+  done(await sb.from("orders").insert(orderToRow(creatorId, o)), "order");
 }
 
 export async function updateOrder(
@@ -621,7 +635,7 @@ export async function updateOrder(
   if (patch.tracking !== undefined) row.tracking = patch.tracking;
   if (patch.address !== undefined) row.address = patch.address;
   if (patch.sessionDate !== undefined) row.session_date = patch.sessionDate;
-  await sb.from("orders").update(row).eq("id", id);
+  done(await sb.from("orders").update(row).eq("id", id), "order");
 }
 
 // ---------------------------------------------------------------------------
@@ -673,14 +687,17 @@ export async function insertConversation(
   c: Conversation
 ): Promise<void> {
   assertSize(c, "conversation");
-  await sb.from("conversations").upsert({
-    id: c.id,
-    creator_id: creatorId,
-    client_id: c.clientId,
-    client_name: c.clientName,
-    client_avatar: c.clientAvatar,
-    unread: c.unread,
-  });
+  done(
+    await sb.from("conversations").upsert({
+      id: c.id,
+      creator_id: creatorId,
+      client_id: c.clientId,
+      client_name: c.clientName,
+      client_avatar: c.clientAvatar,
+      unread: c.unread,
+    }),
+    "conversation"
+  );
 }
 
 export async function insertMessage(
@@ -689,12 +706,15 @@ export async function insertMessage(
   msg: Message
 ): Promise<void> {
   assertSize(msg, "message");
-  await sb.from("messages").insert({
-    id: msg.id,
-    conversation_id: conversationId,
-    sender: msg.from,
-    text: msg.text,
-  });
+  done(
+    await sb.from("messages").insert({
+      id: msg.id,
+      conversation_id: conversationId,
+      sender: msg.from,
+      text: msg.text,
+    }),
+    "message"
+  );
 }
 
 export async function setConversationUnread(
@@ -702,7 +722,10 @@ export async function setConversationUnread(
   conversationId: string,
   unread: number
 ): Promise<void> {
-  await sb.from("conversations").update({ unread }).eq("id", conversationId);
+  done(
+    await sb.from("conversations").update({ unread }).eq("id", conversationId),
+    "conversation"
+  );
 }
 
 // ---------------------------------------------------------------------------
