@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Dumbbell, KeyRound, Loader2, LockKeyhole, ShieldAlert } from "lucide-react";
+import { Dumbbell, Eye, EyeOff, Loader2, LockKeyhole, ShieldAlert } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useToast } from "@/components/ui/toast";
 import { Logo } from "@/components/shared/logo";
@@ -11,6 +11,7 @@ import { Input, Label } from "@/components/ui/input";
 import {
   LIMITS,
   authLockStatus,
+  clearAuthAttempts,
   formatRetry,
   recordAuthAttempt,
 } from "@/lib/security";
@@ -19,12 +20,13 @@ const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 export default function PortalLoginPage() {
   const router = useRouter();
-  const { clientLoginOtp, clientVerifyOtp, clientLogout, clientUser, hydrated } = useApp();
+  const { clientLogin, clientSignup, clientLogout, clientUser, hydrated } = useApp();
   const { toast } = useToast();
 
-  const [step, setStep] = useState<"email" | "code">("email");
+  const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [lockMsg, setLockMsg] = useState("");
 
@@ -33,12 +35,15 @@ export default function PortalLoginPage() {
     if (hydrated && clientUser) router.replace("/portal");
   }, [hydrated, clientUser, router]);
 
-  // Step 1: email a 6-digit code.
-  const sendCode = async (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const value = email.trim();
     if (!EMAIL_RE.test(value)) {
       toast("Enter a valid email", { variant: "error" });
+      return;
+    }
+    if (password.length < 6) {
+      toast("Password must be at least 6 characters", { variant: "error" });
       return;
     }
     const status = authLockStatus();
@@ -48,43 +53,33 @@ export default function PortalLoginPage() {
     }
     setLockMsg("");
     setLoading(true);
-    const res = await clientLoginOtp(value);
-    recordAuthAttempt();
-    setLoading(false);
-    if (res.ok) {
-      setStep("code");
-      toast(`We sent a 6-digit code to ${value}`, { variant: "success" });
-    } else {
-      toast(res.error ?? "Couldn't send the code. Try again.", { variant: "error" });
-    }
-  };
 
-  // Step 2: verify the code.
-  const verifyCode = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const c = code.trim();
-    if (c.length < 6) {
-      toast("Enter the 6-digit code", { variant: "error" });
-      return;
-    }
-    setLoading(true);
-    const res = await clientVerifyOtp(email.trim(), c);
-    setLoading(false);
+    const res =
+      mode === "signup"
+        ? await clientSignup(value, password)
+        : await clientLogin(value, password);
+
     if (!res.ok) {
-      toast(res.error ?? "Invalid or expired code.", { variant: "error" });
+      setLoading(false);
+      const r = recordAuthAttempt();
+      if (!r.allowed) {
+        setLockMsg(`Too many attempts. Try again in ${formatRetry(r.retryAfterMs)}.`);
+      }
+      toast(res.error ?? "Couldn't sign in.", { variant: "error" });
       return;
     }
+
+    clearAuthAttempts();
     if (res.hasClient) {
-      toast("Welcome back!", { variant: "success" });
+      toast("Welcome!", { variant: "success" });
       router.push("/portal");
     } else {
-      // Valid code, but this email has no purchases — sign back out and retry.
+      // Valid account, but this email has no purchases — sign back out.
+      setLoading(false);
       toast("No purchases found for this email. Use the email from your order.", {
         variant: "error",
       });
       clientLogout();
-      setStep("email");
-      setCode("");
     }
   };
 
@@ -106,92 +101,91 @@ export default function PortalLoginPage() {
               Client Portal
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Sign in to access your programs, plans &amp; coaching sessions.
+              {mode === "signup"
+                ? "Create your account to access your programs & sessions."
+                : "Sign in to access your programs, plans & sessions."}
             </p>
           </div>
 
-          {step === "email" ? (
-            <form onSubmit={sendCode} className="mt-6 space-y-4">
-              <div>
-                <Label htmlFor="email">Email used at checkout</Label>
+          <form onSubmit={submit} className="mt-6 space-y-4">
+            <div>
+              <Label htmlFor="email">Email used at checkout</Label>
+              <Input
+                id="email"
+                type="email"
+                maxLength={LIMITS.email}
+                placeholder="you@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="password">Password</Label>
+              <div className="relative">
                 <Input
-                  id="email"
-                  type="email"
-                  maxLength={LIMITS.email}
-                  placeholder="you@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="password"
+                  type={showPw ? "text" : "password"}
+                  maxLength={LIMITS.password}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                 />
-              </div>
-
-              {lockMsg && (
-                <div className="flex items-start gap-2 rounded-lg border border-danger/30 bg-danger/10 p-3 text-xs">
-                  <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
-                  <span className="text-foreground">{lockMsg}</span>
-                </div>
-              )}
-
-              <Button type="submit" size="lg" className="w-full" disabled={loading}>
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
-                {loading ? "Sending code..." : "Email me a code"}
-              </Button>
-            </form>
-          ) : (
-            <form onSubmit={verifyCode} className="mt-6 space-y-4">
-              <p className="text-center text-sm text-muted-foreground">
-                Enter the 6-digit code sent to{" "}
-                <span className="font-semibold text-foreground">{email}</span>.
-              </p>
-              <div>
-                <Label htmlFor="code">Verification code</Label>
-                <Input
-                  id="code"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  maxLength={6}
-                  placeholder="123456"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  className="text-center text-lg font-bold tracking-[0.4em]"
-                  autoFocus
-                />
-              </div>
-
-              <Button type="submit" size="lg" className="w-full" disabled={loading}>
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <LockKeyhole className="h-4 w-4" />}
-                {loading ? "Verifying..." : "Verify & sign in"}
-              </Button>
-
-              <div className="flex items-center justify-between text-xs">
                 <button
                   type="button"
-                  onClick={() => {
-                    setStep("email");
-                    setCode("");
-                  }}
-                  className="flex items-center gap-1 font-semibold text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowPw((v) => !v)}
+                  aria-label={showPw ? "Hide password" : "Show password"}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
-                  <ArrowLeft className="h-3.5 w-3.5" /> Change email
+                  {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
+              </div>
+            </div>
+
+            {lockMsg && (
+              <div className="flex items-start gap-2 rounded-lg border border-danger/30 bg-danger/10 p-3 text-xs">
+                <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
+                <span className="text-foreground">{lockMsg}</span>
+              </div>
+            )}
+
+            <Button type="submit" size="lg" className="w-full" disabled={loading}>
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <LockKeyhole className="h-4 w-4" />}
+              {loading
+                ? mode === "signup"
+                  ? "Creating account..."
+                  : "Signing in..."
+                : mode === "signup"
+                  ? "Create account"
+                  : "Sign in"}
+            </Button>
+          </form>
+
+          <p className="mt-6 text-center text-sm text-muted-foreground">
+            {mode === "signup" ? (
+              <>
+                Already have an account?{" "}
                 <button
                   type="button"
-                  disabled={loading}
-                  onClick={async () => {
-                    const res = await clientLoginOtp(email.trim());
-                    toast(
-                      res.ok ? "New code sent" : res.error ?? "Couldn't resend",
-                      { variant: res.ok ? "success" : "error" }
-                    );
-                  }}
+                  onClick={() => setMode("login")}
                   className="font-semibold text-primary hover:underline"
                 >
-                  Resend code
+                  Log in
                 </button>
-              </div>
-            </form>
-          )}
-
-          <p className="mt-6 text-center text-xs text-muted-foreground">
+              </>
+            ) : (
+              <>
+                First time here?{" "}
+                <button
+                  type="button"
+                  onClick={() => setMode("signup")}
+                  className="font-semibold text-primary hover:underline"
+                >
+                  Create your portal account
+                </button>
+              </>
+            )}
+          </p>
+          <p className="mt-2 text-center text-xs text-muted-foreground">
             Use the email address you entered when you bought a product.
           </p>
         </div>

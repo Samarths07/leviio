@@ -97,10 +97,13 @@ interface AppContextValue {
   coach: Creator | null;
   clientUser: Client | null;
   /** Send a passwordless magic link to the client. Returns send status. */
-  clientLoginOtp: (email: string) => Promise<{ ok: boolean; error?: string }>;
-  clientVerifyOtp: (
+  clientLogin: (
     email: string,
-    token: string
+    password: string
+  ) => Promise<{ ok: boolean; error?: string; hasClient?: boolean }>;
+  clientSignup: (
+    email: string,
+    password: string
   ) => Promise<{ ok: boolean; error?: string; hasClient?: boolean }>;
   clientLogout: () => void;
   // products
@@ -583,36 +586,45 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [sb, reportError]
   );
 
-  // ---- client portal auth -------------------------------------------------
-  // Send a passwordless magic link to the client's email. After they click it
-  // they return authenticated and applySession() resolves their portal data.
-  const clientLoginOtp = useCallback(
-    async (email: string): Promise<{ ok: boolean; error?: string }> => {
-      if (!sb) return { ok: false, error: "Supabase not configured" };
-      const { error } = await sb.auth.signInWithOtp({
-        email: email.trim(),
-        options: { shouldCreateUser: true },
-      });
-      if (error) return { ok: false, error: error.message };
-      return { ok: true };
-    },
-    [sb]
-  );
-
-  // Step 2: verify the emailed 6-digit code, then resolve the client's data.
-  const clientVerifyOtp = useCallback(
+  // ---- client portal auth (email + password) ------------------------------
+  // Existing client logs into the portal.
+  const clientLogin = useCallback(
     async (
       email: string,
-      token: string
+      password: string
     ): Promise<{ ok: boolean; error?: string; hasClient?: boolean }> => {
       if (!sb) return { ok: false, error: "Supabase not configured" };
-      const { data, error } = await sb.auth.verifyOtp({
+      const { data, error } = await sb.auth.signInWithPassword({
         email: email.trim(),
-        token: token.trim(),
-        type: "email",
+        password,
       });
       if (error || !data.session) {
-        return { ok: false, error: error?.message ?? "Invalid or expired code." };
+        return { ok: false, error: error?.message ?? "Invalid email or password." };
+      }
+      const resolved = await loadClientData(email.trim());
+      return { ok: true, hasClient: !!resolved };
+    },
+    [sb, loadClientData]
+  );
+
+  // First-time client creates their portal account (no email confirmation when
+  // "Confirm email" is off in Supabase — so no SMTP needed).
+  const clientSignup = useCallback(
+    async (
+      email: string,
+      password: string
+    ): Promise<{ ok: boolean; error?: string; hasClient?: boolean }> => {
+      if (!sb) return { ok: false, error: "Supabase not configured" };
+      const { data, error } = await sb.auth.signUp({
+        email: email.trim(),
+        password,
+      });
+      if (error) return { ok: false, error: error.message };
+      if (!data.session) {
+        return {
+          ok: false,
+          error: "Check your email to confirm your account, then log in.",
+        };
       }
       const resolved = await loadClientData(email.trim());
       return { ok: true, hasClient: !!resolved };
@@ -861,8 +873,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateUser,
       coach,
       clientUser,
-      clientLoginOtp,
-      clientVerifyOtp,
+      clientLogin,
+      clientSignup,
       clientLogout,
       products,
       addProduct,
@@ -896,7 +908,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }),
     [
       hydrated, user, login, signup, logout, updateUser,
-      coach, clientUser, clientLoginOtp, clientVerifyOtp, clientLogout,
+      coach, clientUser, clientLogin, clientSignup, clientLogout,
       products, addProduct, updateProduct, deleteProduct,
       clients, addClient, updateClient,
       mealPlans, saveMealPlan, deleteMealPlan,
