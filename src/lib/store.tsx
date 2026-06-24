@@ -98,6 +98,10 @@ interface AppContextValue {
   clientUser: Client | null;
   /** Send a passwordless magic link to the client. Returns send status. */
   clientLoginOtp: (email: string) => Promise<{ ok: boolean; error?: string }>;
+  clientVerifyOtp: (
+    email: string,
+    token: string
+  ) => Promise<{ ok: boolean; error?: string; hasClient?: boolean }>;
   clientLogout: () => void;
   // products
   products: Product[];
@@ -210,8 +214,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Load the signed-in client's own data (orders, assigned plan/program,
   // sessions, messages, coach) via the RLS-scoped client-portal queries.
   const loadClientData = useCallback(
-    async (email: string) => {
-      if (!sb) return;
+    async (email: string): Promise<Client | null> => {
+      if (!sb) return null;
       const managed = await db.getClientByEmail(sb, email);
       const ords = await db.listOrdersByEmail(sb, email);
       let resolved: Client | null = managed?.client ?? null;
@@ -222,7 +226,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
       if (!resolved) {
         setClientUser(null);
-        return;
+        return null;
       }
       setClientUser(resolved);
       setOrders(ords);
@@ -245,6 +249,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setConversations(await db.listClientConversations(sb));
       // Coach is shown to the client → use the email-free public profile.
       if (coachId) setCoach(await db.getPublicProfile(sb, coachId));
+      return resolved;
     },
     [sb]
   );
@@ -584,17 +589,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const clientLoginOtp = useCallback(
     async (email: string): Promise<{ ok: boolean; error?: string }> => {
       if (!sb) return { ok: false, error: "Supabase not configured" };
-      const base =
-        process.env.NEXT_PUBLIC_SITE_URL ??
-        (typeof window !== "undefined" ? window.location.origin : "");
       const { error } = await sb.auth.signInWithOtp({
         email: email.trim(),
-        options: { emailRedirectTo: `${base}/portal` },
+        options: { shouldCreateUser: true },
       });
       if (error) return { ok: false, error: error.message };
       return { ok: true };
     },
     [sb]
+  );
+
+  // Step 2: verify the emailed 6-digit code, then resolve the client's data.
+  const clientVerifyOtp = useCallback(
+    async (
+      email: string,
+      token: string
+    ): Promise<{ ok: boolean; error?: string; hasClient?: boolean }> => {
+      if (!sb) return { ok: false, error: "Supabase not configured" };
+      const { data, error } = await sb.auth.verifyOtp({
+        email: email.trim(),
+        token: token.trim(),
+        type: "email",
+      });
+      if (error || !data.session) {
+        return { ok: false, error: error?.message ?? "Invalid or expired code." };
+      }
+      const resolved = await loadClientData(email.trim());
+      return { ok: true, hasClient: !!resolved };
+    },
+    [sb, loadClientData]
   );
 
   const clientLogout = useCallback(() => {
@@ -839,6 +862,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       coach,
       clientUser,
       clientLoginOtp,
+      clientVerifyOtp,
       clientLogout,
       products,
       addProduct,
@@ -872,7 +896,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }),
     [
       hydrated, user, login, signup, logout, updateUser,
-      coach, clientUser, clientLoginOtp, clientLogout,
+      coach, clientUser, clientLoginOtp, clientVerifyOtp, clientLogout,
       products, addProduct, updateProduct, deleteProduct,
       clients, addClient, updateClient,
       mealPlans, saveMealPlan, deleteMealPlan,

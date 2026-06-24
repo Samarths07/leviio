@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Dumbbell, Loader2, LockKeyhole, MailCheck, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Dumbbell, KeyRound, Loader2, LockKeyhole, ShieldAlert } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useToast } from "@/components/ui/toast";
 import { Logo } from "@/components/shared/logo";
@@ -19,12 +19,13 @@ const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 export default function PortalLoginPage() {
   const router = useRouter();
-  const { clientLoginOtp, clientUser, hydrated } = useApp();
+  const { clientLoginOtp, clientVerifyOtp, clientLogout, clientUser, hydrated } = useApp();
   const { toast } = useToast();
 
+  const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
-  const [sent, setSent] = useState(false);
   const [lockMsg, setLockMsg] = useState("");
 
   // Already signed in → straight to the portal.
@@ -32,15 +33,14 @@ export default function PortalLoginPage() {
     if (hydrated && clientUser) router.replace("/portal");
   }, [hydrated, clientUser, router]);
 
-  const submit = async (e: React.FormEvent) => {
+  // Step 1: email a 6-digit code.
+  const sendCode = async (e: React.FormEvent) => {
     e.preventDefault();
     const value = email.trim();
     if (!EMAIL_RE.test(value)) {
       toast("Enter a valid email", { variant: "error" });
       return;
     }
-    // Rate limit: max 5 sends / 15 minutes. Throttles magic-link email-bombing;
-    // Supabase also enforces OTP limits server-side.
     const status = authLockStatus();
     if (!status.allowed) {
       setLockMsg(`Too many attempts. Try again in ${formatRetry(status.retryAfterMs)}.`);
@@ -48,14 +48,43 @@ export default function PortalLoginPage() {
     }
     setLockMsg("");
     setLoading(true);
-
     const res = await clientLoginOtp(value);
     recordAuthAttempt();
     setLoading(false);
     if (res.ok) {
-      setSent(true);
+      setStep("code");
+      toast(`We sent a 6-digit code to ${value}`, { variant: "success" });
     } else {
-      toast(res.error ?? "Couldn't send the link. Try again.", { variant: "error" });
+      toast(res.error ?? "Couldn't send the code. Try again.", { variant: "error" });
+    }
+  };
+
+  // Step 2: verify the code.
+  const verifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const c = code.trim();
+    if (c.length < 6) {
+      toast("Enter the 6-digit code", { variant: "error" });
+      return;
+    }
+    setLoading(true);
+    const res = await clientVerifyOtp(email.trim(), c);
+    setLoading(false);
+    if (!res.ok) {
+      toast(res.error ?? "Invalid or expired code.", { variant: "error" });
+      return;
+    }
+    if (res.hasClient) {
+      toast("Welcome back!", { variant: "success" });
+      router.push("/portal");
+    } else {
+      // Valid code, but this email has no purchases — sign back out and retry.
+      toast("No purchases found for this email. Use the email from your order.", {
+        variant: "error",
+      });
+      clientLogout();
+      setStep("email");
+      setCode("");
     }
   };
 
@@ -81,26 +110,8 @@ export default function PortalLoginPage() {
             </p>
           </div>
 
-          {/* Magic-link sent confirmation */}
-          {sent ? (
-            <div className="mt-8 flex flex-col items-center gap-3 rounded-2xl border border-success/30 bg-success/10 p-6 text-center">
-              <MailCheck className="h-8 w-8 text-success" />
-              <p className="font-bold text-foreground">Check your email</p>
-              <p className="text-sm text-muted-foreground">
-                We sent a secure sign-in link to{" "}
-                <span className="font-semibold text-foreground">{email}</span>.
-                Open it on this device to access your portal.
-              </p>
-              <button
-                type="button"
-                onClick={() => setSent(false)}
-                className="text-xs font-semibold text-primary hover:underline"
-              >
-                Use a different email
-              </button>
-            </div>
-          ) : (
-            <form onSubmit={submit} className="mt-6 space-y-4">
+          {step === "email" ? (
+            <form onSubmit={sendCode} className="mt-6 space-y-4">
               <div>
                 <Label htmlFor="email">Email used at checkout</Label>
                 <Input
@@ -121,13 +132,62 @@ export default function PortalLoginPage() {
               )}
 
               <Button type="submit" size="lg" className="w-full" disabled={loading}>
-                {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <LockKeyhole className="h-4 w-4" />
-                )}
-                {loading ? "Sending link..." : "Email me a magic link"}
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+                {loading ? "Sending code..." : "Email me a code"}
               </Button>
+            </form>
+          ) : (
+            <form onSubmit={verifyCode} className="mt-6 space-y-4">
+              <p className="text-center text-sm text-muted-foreground">
+                Enter the 6-digit code sent to{" "}
+                <span className="font-semibold text-foreground">{email}</span>.
+              </p>
+              <div>
+                <Label htmlFor="code">Verification code</Label>
+                <Input
+                  id="code"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  placeholder="123456"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  className="text-center text-lg font-bold tracking-[0.4em]"
+                  autoFocus
+                />
+              </div>
+
+              <Button type="submit" size="lg" className="w-full" disabled={loading}>
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <LockKeyhole className="h-4 w-4" />}
+                {loading ? "Verifying..." : "Verify & sign in"}
+              </Button>
+
+              <div className="flex items-center justify-between text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStep("email");
+                    setCode("");
+                  }}
+                  className="flex items-center gap-1 font-semibold text-muted-foreground hover:text-foreground"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" /> Change email
+                </button>
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={async () => {
+                    const res = await clientLoginOtp(email.trim());
+                    toast(
+                      res.ok ? "New code sent" : res.error ?? "Couldn't resend",
+                      { variant: res.ok ? "success" : "error" }
+                    );
+                  }}
+                  className="font-semibold text-primary hover:underline"
+                >
+                  Resend code
+                </button>
+              </div>
             </form>
           )}
 
