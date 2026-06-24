@@ -20,10 +20,11 @@ const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 export default function PortalLoginPage() {
   const router = useRouter();
-  const { clientLogin, clientSignup, clientLogout, clientUser, hydrated } = useApp();
+  const { clientLogin, clientSignup, clientForgotPassword, clientLogout, clientUser, hydrated } =
+    useApp();
   const { toast } = useToast();
 
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -42,6 +43,21 @@ export default function PortalLoginPage() {
       toast("Enter a valid email", { variant: "error" });
       return;
     }
+
+    // Forgot password → email a reset link.
+    if (mode === "forgot") {
+      setLoading(true);
+      const res = await clientForgotPassword(value);
+      setLoading(false);
+      if (res.ok) {
+        toast("If that account exists, a reset link is on its way.", { variant: "success" });
+        setMode("login");
+      } else {
+        toast(res.error ?? "Couldn't send reset link.", { variant: "error" });
+      }
+      return;
+    }
+
     if (password.length < 6) {
       toast("Password must be at least 6 characters", { variant: "error" });
       return;
@@ -103,7 +119,9 @@ export default function PortalLoginPage() {
             <p className="mt-1 text-sm text-muted-foreground">
               {mode === "signup"
                 ? "Create your account to access your programs & sessions."
-                : "Sign in to access your programs, plans & sessions."}
+                : mode === "forgot"
+                  ? "Enter your email and we'll send a reset link."
+                  : "Sign in to access your programs, plans & sessions."}
             </p>
           </div>
 
@@ -119,27 +137,29 @@ export default function PortalLoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
-            <div>
-              <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPw ? "text" : "password"}
-                  maxLength={LIMITS.password}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPw((v) => !v)}
-                  aria-label={showPw ? "Hide password" : "Show password"}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+            {mode !== "forgot" && (
+              <div>
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPw ? "text" : "password"}
+                    maxLength={LIMITS.password}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPw((v) => !v)}
+                    aria-label={showPw ? "Hide password" : "Show password"}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
             {lockMsg && (
               <div className="flex items-start gap-2 rounded-lg border border-danger/30 bg-danger/10 p-3 text-xs">
@@ -153,15 +173,27 @@ export default function PortalLoginPage() {
               {loading
                 ? mode === "signup"
                   ? "Creating account..."
-                  : "Signing in..."
+                  : mode === "forgot"
+                    ? "Sending..."
+                    : "Signing in..."
                 : mode === "signup"
                   ? "Create account"
-                  : "Sign in"}
+                  : mode === "forgot"
+                    ? "Send reset link"
+                    : "Sign in"}
             </Button>
           </form>
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
-            {mode === "signup" ? (
+            {mode === "forgot" ? (
+              <button
+                type="button"
+                onClick={() => setMode("login")}
+                className="font-semibold text-primary hover:underline"
+              >
+                Back to sign in
+              </button>
+            ) : mode === "signup" ? (
               <>
                 Already have an account?{" "}
                 <button
@@ -185,7 +217,18 @@ export default function PortalLoginPage() {
               </>
             )}
           </p>
-          <p className="mt-2 text-center text-xs text-muted-foreground">
+          {mode === "login" && (
+            <p className="mt-2 text-center text-sm">
+              <button
+                type="button"
+                onClick={() => setMode("forgot")}
+                className="font-semibold text-muted-foreground hover:text-foreground"
+              >
+                Forgot password?
+              </button>
+            </p>
+          )}
+          <p className="mt-3 text-center text-xs text-muted-foreground">
             Use the email address you entered when you bought a product.
           </p>
         </div>

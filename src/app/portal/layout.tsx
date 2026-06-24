@@ -27,15 +27,15 @@ export default function PortalLayout({
   const router = useRouter();
   const { clientUser, clientLogout, user, hydrated, coach: portalCoach } = useApp();
 
-  // The login page lives under /portal but must render without the shell/guard.
-  const isLogin = pathname === "/portal/login";
+  // Auth pages live under /portal but render without the shell/guard.
+  const isAuthPage = pathname === "/portal/login" || pathname === "/portal/reset";
   const coach = portalCoach ?? user ?? seedCreator;
 
   useEffect(() => {
-    if (hydrated && !clientUser && !isLogin) router.replace("/portal/login");
-  }, [hydrated, clientUser, isLogin, router]);
+    if (hydrated && !clientUser && !isAuthPage) router.replace("/portal/login");
+  }, [hydrated, clientUser, isAuthPage, router]);
 
-  if (isLogin) return <>{children}</>;
+  if (isAuthPage) return <>{children}</>;
 
   if (!hydrated || !clientUser) {
     return (

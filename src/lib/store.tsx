@@ -105,6 +105,8 @@ interface AppContextValue {
     email: string,
     password: string
   ) => Promise<{ ok: boolean; error?: string; hasClient?: boolean }>;
+  clientForgotPassword: (email: string) => Promise<{ ok: boolean; error?: string }>;
+  updateAuthPassword: (password: string) => Promise<{ ok: boolean; error?: string }>;
   clientLogout: () => void;
   // products
   products: Product[];
@@ -638,6 +640,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
     sb?.auth.signOut();
   }, [sb]);
 
+  // Email a password-reset link (needs SMTP configured in Supabase).
+  const clientForgotPassword = useCallback(
+    async (email: string): Promise<{ ok: boolean; error?: string }> => {
+      if (!sb) return { ok: false, error: "Supabase not configured" };
+      const base =
+        process.env.NEXT_PUBLIC_SITE_URL ??
+        (typeof window !== "undefined" ? window.location.origin : "");
+      const { error } = await sb.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${base}/auth/callback?next=/portal/reset`,
+      });
+      if (error) return { ok: false, error: error.message };
+      return { ok: true };
+    },
+    [sb]
+  );
+
+  // Set a new password for the currently-authenticated (recovery) session.
+  const updateAuthPassword = useCallback(
+    async (password: string): Promise<{ ok: boolean; error?: string }> => {
+      if (!sb) return { ok: false, error: "Supabase not configured" };
+      const { error } = await sb.auth.updateUser({ password });
+      if (error) return { ok: false, error: error.message };
+      return { ok: true };
+    },
+    [sb]
+  );
+
   // ---- products -----------------------------------------------------------
   const addProduct = useCallback(
     (p: Product) => {
@@ -875,6 +904,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       clientUser,
       clientLogin,
       clientSignup,
+      clientForgotPassword,
+      updateAuthPassword,
       clientLogout,
       products,
       addProduct,
@@ -908,7 +939,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }),
     [
       hydrated, user, login, signup, logout, updateUser,
-      coach, clientUser, clientLogin, clientSignup, clientLogout,
+      coach, clientUser, clientLogin, clientSignup, clientForgotPassword, updateAuthPassword, clientLogout,
       products, addProduct, updateProduct, deleteProduct,
       clients, addClient, updateClient,
       mealPlans, saveMealPlan, deleteMealPlan,
