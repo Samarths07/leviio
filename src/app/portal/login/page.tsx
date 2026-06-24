@@ -1,12 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Dumbbell, Loader2, LockKeyhole, MailCheck, ShieldAlert } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useToast } from "@/components/ui/toast";
-import { creator as seedCreator } from "@/lib/mock-data";
 import { Logo } from "@/components/shared/logo";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
@@ -21,9 +19,8 @@ const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 export default function PortalLoginPage() {
   const router = useRouter();
-  const { clientLoginOtp, clientUser, hydrated, coach: portalCoach } = useApp();
+  const { clientLoginOtp, clientUser, hydrated } = useApp();
   const { toast } = useToast();
-  const coach = portalCoach ?? seedCreator;
 
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -65,14 +62,8 @@ export default function PortalLoginPage() {
   return (
     <div className="flex min-h-dvh flex-col bg-background">
       <header className="border-b border-border">
-        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
+        <div className="mx-auto flex h-14 max-w-5xl items-center px-4">
           <Logo />
-          <Link
-            href={`/${coach.username}`}
-            className="text-sm font-semibold text-muted-foreground hover:text-foreground"
-          >
-            Browse store
-          </Link>
         </div>
       </header>
 
@@ -142,11 +133,6 @@ export default function PortalLoginPage() {
 
           <p className="mt-6 text-center text-xs text-muted-foreground">
             Use the email address you entered when you bought a product.
-            <br />
-            Haven&apos;t purchased yet?{" "}
-            <Link href={`/${coach.username}`} className="font-semibold text-primary hover:underline">
-              Visit the store
-            </Link>
           </p>
         </div>
       </main>

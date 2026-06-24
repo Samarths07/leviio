@@ -22,7 +22,7 @@ import {
 } from "@/lib/security";
 
 const schema = z.object({
-  email: z.string().trim().email("Enter a valid email").max(LIMITS.email),
+  identifier: z.string().trim().min(3, "Enter your email or username").max(LIMITS.email),
   password: z.string().min(6, "Password must be at least 6 characters").max(LIMITS.password),
 });
 type FormValues = z.infer<typeof schema>;
@@ -51,26 +51,50 @@ export default function LoginPage() {
     }
     setLoading(true);
 
-    const ok = await login(data.email, data.password);
-    if (ok) {
-      clearAuthAttempts();
-      toast("Welcome back!", { variant: "success" });
-      router.push("/dashboard");
+    const id = data.identifier.trim();
+    const finishFail = () => {
+      setLoading(false);
+      const r = recordAuthAttempt();
+      if (!r.allowed) {
+        setLockMsg(`Too many failed attempts. Try again in ${formatRetry(r.retryAfterMs)}.`);
+        toast("Account temporarily locked", { variant: "error" });
+      } else {
+        setLockMsg("");
+        toast(
+          `Invalid login. ${r.remaining} attempt${r.remaining === 1 ? "" : "s"} left.`,
+          { variant: "error" }
+        );
+      }
+    };
+
+    // Email → client sign-in (fast). Username → server route resolves the email
+    // privately, signs in, then we reload so the session is picked up.
+    if (id.includes("@")) {
+      const ok = await login(id, data.password);
+      if (ok) {
+        clearAuthAttempts();
+        toast("Welcome back!", { variant: "success" });
+        router.push("/dashboard");
+      } else {
+        finishFail();
+      }
       return;
     }
 
-    // Failed attempt — record it and surface remaining tries / lockout.
-    setLoading(false);
-    const r = recordAuthAttempt();
-    if (!r.allowed) {
-      setLockMsg(`Too many failed attempts. Try again in ${formatRetry(r.retryAfterMs)}.`);
-      toast("Account temporarily locked", { variant: "error" });
-    } else {
-      setLockMsg("");
-      toast(
-        `Invalid email or password. ${r.remaining} attempt${r.remaining === 1 ? "" : "s"} left.`,
-        { variant: "error" }
-      );
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: id, password: data.password }),
+      });
+      if (res.ok) {
+        clearAuthAttempts();
+        window.location.href = "/dashboard";
+      } else {
+        finishFail();
+      }
+    } catch {
+      finishFail();
     }
   };
 
@@ -92,10 +116,10 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
             <div>
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" maxLength={LIMITS.email} placeholder="you@email.com" {...register("email")} />
-              {errors.email && (
-                <p className="mt-1 text-xs text-danger">{errors.email.message}</p>
+              <Label htmlFor="identifier">Email or username</Label>
+              <Input id="identifier" type="text" autoCapitalize="none" maxLength={LIMITS.email} placeholder="you@email.com or username" {...register("identifier")} />
+              {errors.identifier && (
+                <p className="mt-1 text-xs text-danger">{errors.identifier.message}</p>
               )}
             </div>
             <div>
