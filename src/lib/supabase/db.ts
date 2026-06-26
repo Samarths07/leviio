@@ -9,6 +9,7 @@ import type {
   Message,
   Order,
   Product,
+  Review,
   SessionNote,
   WorkoutProgram,
 } from "@/lib/types";
@@ -721,6 +722,62 @@ export async function insertMessage(
     }),
     "message"
   );
+}
+
+// ---------------------------------------------------------------------------
+// reviews
+// ---------------------------------------------------------------------------
+function rowToReview(r: Row): Review {
+  return {
+    id: r.id as string,
+    creatorId: r.creator_id as string,
+    productId: (r.product_id as string) ?? undefined,
+    clientEmail: (r.client_email as string) ?? "",
+    clientName: (r.client_name as string) ?? "",
+    rating: Number(r.rating ?? 5),
+    text: (r.text as string) ?? "",
+    createdAt: (r.created_at as string) ?? new Date().toISOString(),
+  };
+}
+
+/** Public: all reviews for a creator's storefront (newest first). */
+export async function listReviews(sb: SupabaseClient, creatorId: string): Promise<Review[]> {
+  const { data } = await sb
+    .from("reviews")
+    .select("*")
+    .eq("creator_id", creatorId)
+    .order("created_at", { ascending: false });
+  return (data ?? []).map(rowToReview);
+}
+
+/** The signed-in client's existing review for this creator, if any. */
+export async function getMyReview(
+  sb: SupabaseClient,
+  creatorId: string,
+  email: string
+): Promise<Review | null> {
+  const { data } = await sb
+    .from("reviews")
+    .select("*")
+    .eq("creator_id", creatorId)
+    .ilike("client_email", email)
+    .maybeSingle();
+  return data ? rowToReview(data) : null;
+}
+
+/** Client creates/updates their review (RLS requires a matching purchase). */
+export async function upsertReview(sb: SupabaseClient, review: Review): Promise<void> {
+  assertSize(review, "review");
+  const { error } = await sb.from("reviews").upsert({
+    id: review.id,
+    creator_id: review.creatorId,
+    product_id: review.productId ?? null,
+    client_email: review.clientEmail,
+    client_name: review.clientName,
+    rating: review.rating,
+    text: review.text,
+  });
+  if (error) throw new Error(error.message);
 }
 
 export async function setConversationUnread(

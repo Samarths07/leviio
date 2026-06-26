@@ -17,7 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { creator as seedCreator, findDiscount, type DiscountCode } from "@/lib/mock-data";
-import type { CartItem, Creator, Product } from "@/lib/types";
+import type { CartItem, Creator, Product, Review } from "@/lib/types";
 import { compactNumber, formatCurrency } from "@/lib/utils";
 import { useApp } from "@/lib/store";
 import { getSupabaseBrowser } from "@/lib/supabase/config";
@@ -27,6 +27,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TikTokIcon } from "@/components/shared/icons";
+import { StarRating } from "@/components/shared/star-rating";
 import { StoreProductCard } from "@/components/storefront/store-product-card";
 import { CheckoutModal } from "@/components/storefront/checkout-modal";
 import { useToast } from "@/components/ui/toast";
@@ -48,6 +49,7 @@ export default function StorefrontPage() {
   // Load the store owner + their published products by username (Supabase).
   const [sbProfile, setSbProfile] = useState<Creator | null>(null);
   const [sbProducts, setSbProducts] = useState<Product[]>([]);
+  const [sbReviews, setSbReviews] = useState<Review[]>([]);
   const [sbLoading, setSbLoading] = useState(true);
   const [sbNotFound, setSbNotFound] = useState(false);
 
@@ -70,6 +72,8 @@ export default function StorefrontPage() {
       }
       setSbProfile(prof);
       setSbProducts(await db.listPublishedProducts(sb, prof.id));
+      const revs = await db.listReviews(sb, prof.id);
+      if (active) setSbReviews(revs);
       if (active) setSbLoading(false);
     })();
     return () => {
@@ -82,6 +86,9 @@ export default function StorefrontPage() {
   const profile = sbProfile ?? seedCreator;
   const accent = profile.bannerColor;
   const published = sbProducts;
+  const avgRating = sbReviews.length
+    ? sbReviews.reduce((s, r) => s + r.rating, 0) / sbReviews.length
+    : 0;
 
   const [tab, setTab] = useState("All");
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -210,6 +217,12 @@ export default function StorefrontPage() {
             <Stat label="Clients Coached" value={compactNumber(profile.followers)} />
             <span className="h-8 w-px bg-border" />
             <Stat label="Products" value={String(published.length)} />
+            {sbReviews.length > 0 && (
+              <>
+                <span className="h-8 w-px bg-border" />
+                <Stat label="Rating" value={`${avgRating.toFixed(1)}★`} />
+              </>
+            )}
           </div>
         </div>
 
@@ -245,6 +258,33 @@ export default function StorefrontPage() {
               <StoreProductCard key={p.id} product={p} accent={accent} onAdd={add} />
             ))}
           </div>
+        )}
+
+        {/* Reviews (only when real ones exist) */}
+        {sbReviews.length > 0 && (
+          <section className="mt-14">
+            <h2 className="text-center text-2xl font-extrabold tracking-tight text-foreground">
+              What clients are saying
+            </h2>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {sbReviews.slice(0, 8).map((r) => (
+                <div key={r.id} className="rounded-xl border border-border bg-card p-5">
+                  <StarRating rating={r.rating} size={14} />
+                  {r.text && (
+                    <p className="mt-3 text-sm leading-relaxed text-foreground/90">
+                      “{r.text}”
+                    </p>
+                  )}
+                  <div className="mt-4 flex items-center gap-2.5">
+                    <Avatar name={r.clientName || "Client"} seed={r.clientEmail} size={34} ring />
+                    <p className="text-sm font-bold text-foreground">
+                      {r.clientName || "Verified client"}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
         )}
 
         {/* Footer */}

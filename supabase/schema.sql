@@ -343,6 +343,43 @@ create policy "client rw own messages" on public.messages
 drop trigger if exists on_auth_user_created on auth.users;
 drop function if exists public.handle_new_user();
 
+-- ---------------------------------------------------------------------------
+-- reviews  (clients review the creator they bought from; shown on storefronts)
+-- ---------------------------------------------------------------------------
+create table if not exists public.reviews (
+  id           text primary key default gen_random_uuid()::text,
+  creator_id   uuid not null references public.profiles (id) on delete cascade,
+  product_id   text,
+  client_email text not null,
+  client_name  text default '',
+  rating       integer not null check (rating between 1 and 5),
+  text         text default '',
+  created_at   timestamptz default now()
+);
+create index if not exists reviews_creator_idx on public.reviews (creator_id);
+
+alter table public.reviews enable row level security;
+
+-- Reviews are public (so storefronts can show them).
+drop policy if exists "public read reviews" on public.reviews;
+create policy "public read reviews" on public.reviews
+  for select using (true);
+
+-- A client can write/edit a review only for a creator they've purchased from,
+-- and only under their own email.
+drop policy if exists "client manage own review" on public.reviews;
+create policy "client manage own review" on public.reviews
+  for all
+  using (lower(client_email) = lower(auth.jwt() ->> 'email'))
+  with check (
+    lower(client_email) = lower(auth.jwt() ->> 'email')
+    and exists (
+      select 1 from public.orders o
+      where o.creator_id = reviews.creator_id
+        and lower(o.client_email) = lower(auth.jwt() ->> 'email')
+    )
+  );
+
 -- ============================================================================
 -- STORAGE: avatars bucket (uploaded profile photos)
 -- ----------------------------------------------------------------------------

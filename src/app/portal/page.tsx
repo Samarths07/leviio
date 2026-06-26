@@ -20,6 +20,7 @@ import {
   clientProgram,
   matchOrders,
 } from "@/lib/portal";
+import { LeaveReview } from "@/components/portal/leave-review";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -250,6 +251,16 @@ export default function PortalHome() {
           </Card>
         )}
       </div>
+
+      {/* Leave a review (clients who've purchased) */}
+      {clientUser && myOrders.length > 0 && (
+        <LeaveReview
+          coachId={coach.id}
+          coachName={coach.name}
+          clientName={clientUser.name}
+          clientEmail={clientUser.email}
+        />
+      )}
 
       <Link
         href="/portal/library"

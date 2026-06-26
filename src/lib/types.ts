@@ -353,3 +353,15 @@ export interface CartItem {
   product: Product;
   quantity: number;
 }
+
+// ---------- Reviews ----------
+export interface Review {
+  id: string;
+  creatorId: string;
+  productId?: string;
+  clientEmail: string;
+  clientName: string;
+  rating: number; // 1–5
+  text: string;
+  createdAt: string;
+}
