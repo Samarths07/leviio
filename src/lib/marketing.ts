@@ -69,3 +69,17 @@ export const howItWorks = [
     desc: "Get a shareable link, take bookings, and collect payments — all in one place.",
   },
 ];
+
+export interface LandingTestimonial {
+  name: string;
+  handle: string;
+  avatarSeed: string;
+  quote: string;
+  rating: number;
+}
+
+/**
+ * Real customer testimonials for the homepage. Empty by default — the section
+ * stays hidden until you add genuine reviews here (no fabricated ones).
+ */
+export const landingTestimonials: LandingTestimonial[] = [];

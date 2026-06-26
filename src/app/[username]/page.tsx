@@ -16,7 +16,7 @@ import {
   Youtube,
   X,
 } from "lucide-react";
-import { creator as seedCreator, findDiscount, storeReviews, type DiscountCode } from "@/lib/mock-data";
+import { creator as seedCreator, findDiscount, type DiscountCode } from "@/lib/mock-data";
 import type { CartItem, Creator, Product } from "@/lib/types";
 import { compactNumber, formatCurrency } from "@/lib/utils";
 import { useApp } from "@/lib/store";
@@ -26,7 +26,6 @@ import { Logo } from "@/components/shared/logo";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { StarRating } from "@/components/shared/star-rating";
 import { TikTokIcon } from "@/components/shared/icons";
 import { StoreProductCard } from "@/components/storefront/store-product-card";
 import { CheckoutModal } from "@/components/storefront/checkout-modal";
@@ -211,8 +210,6 @@ export default function StorefrontPage() {
             <Stat label="Clients Coached" value={compactNumber(profile.followers)} />
             <span className="h-8 w-px bg-border" />
             <Stat label="Products" value={String(published.length)} />
-            <span className="h-8 w-px bg-border" />
-            <Stat label="Reviews" value={`${storeReviews.length * 30}+`} />
           </div>
         </div>
 
@@ -249,25 +246,6 @@ export default function StorefrontPage() {
             ))}
           </div>
         )}
-
-        {/* Reviews */}
-        <section className="mt-14">
-          <h2 className="text-center text-2xl font-extrabold tracking-tight text-foreground">
-            What clients are saying
-          </h2>
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {storeReviews.map((r) => (
-              <div key={r.name} className="rounded-xl border border-border bg-card p-5">
-                <StarRating rating={r.rating} size={14} />
-                <p className="mt-3 text-sm leading-relaxed text-foreground/90">“{r.text}”</p>
-                <div className="mt-4 flex items-center gap-2.5">
-                  <Avatar name={r.name} seed={r.avatarSeed} size={34} ring />
-                  <p className="text-sm font-bold text-foreground">{r.name}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
 
         {/* Footer */}
         <footer className="mt-14 border-t border-border py-8 text-center">

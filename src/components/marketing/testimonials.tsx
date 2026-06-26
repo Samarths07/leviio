@@ -1,10 +1,13 @@
-import { landingTestimonials } from "@/lib/mock-data";
+import { landingTestimonials } from "@/lib/marketing";
 import { Avatar } from "@/components/ui/avatar";
 import { StarRating } from "@/components/shared/star-rating";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 
 export function Testimonials() {
+  // No fabricated reviews — only render once real testimonials are added.
+  if (landingTestimonials.length === 0) return null;
+
   return (
     <section
       id="testimonials"
@@ -15,7 +18,7 @@ export function Testimonials() {
           Loved by creators
         </Badge>
         <h2 className="mt-4 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
-          Join 2,400+ thriving fitness creators
+          What creators say
         </h2>
       </div>
 

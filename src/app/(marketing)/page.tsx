@@ -63,9 +63,9 @@ export default function LandingPage() {
 
             <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
               {[
-                "2,400+ Active Creators",
-                "4.9★ Rating",
                 "1-Month Free Trial",
+                "No card required",
+                "Cancel anytime",
               ].map((b) => (
                 <div key={b} className="flex items-center gap-2 text-sm">
                   <span className="h-1.5 w-1.5 rounded-full bg-success" />
@@ -153,8 +153,8 @@ export default function LandingPage() {
             Ready to grow your fitness business?
           </h2>
           <p className="relative mx-auto mt-3 max-w-lg text-muted-foreground">
-            Join thousands of creators running their entire business on Leviio.
-            Start your 1-month free trial today.
+            Run your entire fitness business from one dashboard. Start your
+            1-month free trial today — no card required.
           </p>
           <div className="relative mt-7 flex justify-center">
             <Link
