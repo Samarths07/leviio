@@ -47,7 +47,7 @@ export function isOversized(value: unknown, maxBytes: number = LIMITS.storageByt
 
 // ---------------- Auth rate limiting (sliding window) ----------------
 const ATTEMPTS_KEY = "leviio_auth_attempts";
-export const AUTH_MAX_ATTEMPTS = 5;
+export const AUTH_MAX_ATTEMPTS = 15;
 export const AUTH_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 
 function readAttempts(): number[] {
