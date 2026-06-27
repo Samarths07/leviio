@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Camera, Loader2 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,12 @@ export function AvatarUpload({
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<string | undefined>(src);
+
+  // Keep the preview in sync with the saved photo (it loads async after mount,
+  // and can change elsewhere) — otherwise this shows a stale/generated avatar.
+  useEffect(() => {
+    setPreview(src);
+  }, [src]);
 
   const onChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
