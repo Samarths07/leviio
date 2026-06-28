@@ -130,7 +130,9 @@ export default function PortalLoginPage() {
               <Label htmlFor="email">Your email</Label>
               <Input
                 id="email"
+                name="email"
                 type="email"
+                autoComplete="email"
                 maxLength={LIMITS.email}
                 placeholder="you@email.com"
                 value={email}
@@ -143,7 +145,9 @@ export default function PortalLoginPage() {
                 <div className="relative">
                   <Input
                     id="password"
+                    name="password"
                     type={showPw ? "text" : "password"}
+                    autoComplete={mode === "signup" ? "new-password" : "current-password"}
                     maxLength={LIMITS.password}
                     placeholder="••••••••"
                     value={password}

@@ -117,7 +117,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
             <div>
               <Label htmlFor="identifier">Email or username</Label>
-              <Input id="identifier" type="text" autoCapitalize="none" maxLength={LIMITS.email} placeholder="you@email.com or username" {...register("identifier")} />
+              <Input id="identifier" type="text" autoCapitalize="none" autoComplete="username" maxLength={LIMITS.email} placeholder="you@email.com or username" {...register("identifier")} />
               {errors.identifier && (
                 <p className="mt-1 text-xs text-danger">{errors.identifier.message}</p>
               )}
@@ -139,6 +139,7 @@ export default function LoginPage() {
                 <Input
                   id="password"
                   type={showPw ? "text" : "password"}
+                  autoComplete="current-password"
                   maxLength={LIMITS.password}
                   placeholder="••••••••"
                   {...register("password")}

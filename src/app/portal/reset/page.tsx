@@ -98,7 +98,9 @@ export default function ResetPasswordPage() {
                 <div className="relative">
                   <Input
                     id="password"
+                    name="password"
                     type={showPw ? "text" : "password"}
+                    autoComplete="new-password"
                     maxLength={LIMITS.password}
                     placeholder="••••••••"
                     value={password}
@@ -118,7 +120,9 @@ export default function ResetPasswordPage() {
                 <Label htmlFor="confirm">Confirm password</Label>
                 <Input
                   id="confirm"
+                  name="confirm"
                   type={showPw ? "text" : "password"}
+                  autoComplete="new-password"
                   maxLength={LIMITS.password}
                   placeholder="••••••••"
                   value={confirm}

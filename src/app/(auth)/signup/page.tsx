@@ -108,7 +108,7 @@ export default function SignupPage() {
             </div>
             <div>
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="you@email.com" {...register("email")} />
+              <Input id="email" type="email" autoComplete="email" placeholder="you@email.com" {...register("email")} />
               {errors.email && (
                 <p className="mt-1 text-xs text-danger">{errors.email.message}</p>
               )}
@@ -120,6 +120,7 @@ export default function SignupPage() {
                   <Input
                     id="password"
                     type={showPw ? "text" : "password"}
+                    autoComplete="new-password"
                     placeholder="••••••"
                     {...register("password")}
                   />
@@ -141,6 +142,7 @@ export default function SignupPage() {
                 <Input
                   id="confirm"
                   type={showPw ? "text" : "password"}
+                  autoComplete="new-password"
                   placeholder="••••••"
                   {...register("confirm")}
                 />
