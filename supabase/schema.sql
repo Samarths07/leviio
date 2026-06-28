@@ -387,9 +387,9 @@ create policy "client manage own review" on public.reviews
 -- Public-read bucket; each user can write only to their own folder (<uid>/...).
 -- The app uploads to `avatars/<userId>/avatar-*.png` (see src/lib/upload.ts).
 -- ============================================================================
-insert into storage.buckets (id, name, public)
-values ('avatars', 'avatars', true)
-on conflict (id) do nothing;
+insert into storage.buckets (id, name, public, file_size_limit)
+values ('avatars', 'avatars', true, 10485760) -- 10 MB
+on conflict (id) do update set public = true, file_size_limit = 10485760;
 
 drop policy if exists "avatars public read" on storage.objects;
 create policy "avatars public read" on storage.objects
@@ -418,9 +418,12 @@ create policy "avatars owner delete" on storage.objects
 -- Not public. Buyers download via short-lived signed URLs from /api/download
 -- after an ownership check; only the owning creator can read/write directly.
 -- ----------------------------------------------------------------------------
-insert into storage.buckets (id, name, public)
-values ('product-files', 'product-files', false)
-on conflict (id) do nothing;
+-- file_size_limit here is the per-bucket ceiling. It can never exceed your
+-- project's GLOBAL "Upload file size limit" (Storage → Settings), which is
+-- capped at 50 MB on the free tier — raise that to allow large videos/courses.
+insert into storage.buckets (id, name, public, file_size_limit)
+values ('product-files', 'product-files', false, 2147483648) -- 2 GB
+on conflict (id) do update set file_size_limit = 2147483648;
 
 drop policy if exists "product-files owner all" on storage.objects;
 create policy "product-files owner all" on storage.objects

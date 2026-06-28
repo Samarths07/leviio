@@ -2,13 +2,25 @@
 
 import { getSupabaseBrowser } from "./supabase/config";
 
+/** Turn raw Supabase Storage errors into something a creator can act on. */
+function friendlyStorageError(message: string): string {
+  const m = message.toLowerCase();
+  if (m.includes("bucket not found")) {
+    return "Storage bucket missing. Run the storage setup SQL in Supabase (supabase/storage-setup.sql).";
+  }
+  if (m.includes("exceeded the maximum allowed size") || m.includes("payload too large")) {
+    return "File is larger than your Supabase upload limit. Raise it in Storage → Settings (or upgrade your plan).";
+  }
+  return message;
+}
+
 /**
  * Image uploads to the public `avatars` Supabase Storage bucket. Files live
  * under the user's own folder (`<userId>/...`), which the bucket's RLS policies
  * require (see supabase/schema.sql). Public-read so storefronts can display them.
  */
 const BUCKET = "avatars";
-const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
+const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 
 async function uploadImage(
   userId: string,
@@ -19,7 +31,7 @@ async function uploadImage(
   if (!sb) return { error: "Storage isn't configured." };
   if (!userId) return { error: "You must be signed in to upload." };
   if (!file.type.startsWith("image/")) return { error: "Please choose an image file." };
-  if (file.size > MAX_BYTES) return { error: "Image must be under 5 MB." };
+  if (file.size > MAX_BYTES) return { error: "Image must be under 10 MB." };
 
   const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
   // Timestamped name busts the CDN cache so the new image shows immediately.
@@ -28,7 +40,7 @@ async function uploadImage(
   const { error } = await sb.storage
     .from(BUCKET)
     .upload(path, file, { upsert: true, contentType: file.type });
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyStorageError(error.message) };
 
   const { data } = sb.storage.from(BUCKET).getPublicUrl(path);
   return { url: data.publicUrl };
@@ -48,7 +60,10 @@ export function uploadProductImage(userId: string, file: File) {
  * server-issued signed URL after an ownership check (see /api/download).
  */
 const FILES_BUCKET = "product-files";
-const MAX_FILE_BYTES = 50 * 1024 * 1024; // 50 MB (Supabase free-tier limit)
+// Client-side guard only. The real ceiling is your Supabase project's global
+// "Upload file size limit" (Storage → Settings) and the bucket's file_size_limit.
+// Free tier caps this at 50 MB; raise both to allow large videos/courses.
+const MAX_FILE_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB
 
 export async function uploadProductFile(
   userId: string,
@@ -57,7 +72,7 @@ export async function uploadProductFile(
   const sb = getSupabaseBrowser();
   if (!sb) return { error: "Storage isn't configured." };
   if (!userId) return { error: "You must be signed in to upload." };
-  if (file.size > MAX_FILE_BYTES) return { error: "File must be under 50 MB." };
+  if (file.size > MAX_FILE_BYTES) return { error: "File must be under 2 GB." };
 
   const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80) || "file";
   const path = `${userId}/files/${Date.now()}-${safe}`;
@@ -67,6 +82,6 @@ export async function uploadProductFile(
       upsert: false,
       contentType: file.type || "application/octet-stream",
     });
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyStorageError(error.message) };
   return { path, name: file.name };
 }
