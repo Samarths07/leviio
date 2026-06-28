@@ -4,7 +4,6 @@ import type {
   CalendarEvent,
   Client,
   CoachingPackage,
-  CoachingResource,
   Conversation,
   Creator,
   DietDay,
@@ -434,15 +433,6 @@ export const sessionNotes: SessionNote[] = clients.slice(0, 6).map((c, i) => ({
       "Measurements show waist down 2cm. Client thrilled. Maintaining current deficit.",
     ][i],
 }));
-
-export const coachingResources: CoachingResource[] = [
-  { id: "res_1", name: "Weekly Check-in Form", type: "Form" },
-  { id: "res_2", name: "Onboarding Questionnaire", type: "Doc" },
-  { id: "res_3", name: "Macro Tracking Sheet", type: "Sheet" },
-  { id: "res_4", name: "Habit Tracker Template", type: "PDF" },
-  { id: "res_5", name: "Accountability Contract", type: "Doc" },
-  { id: "res_6", name: "Progress Photo Guide", type: "PDF" },
-];
 
 // ---------------- Diet plans ----------------
 function makeMeal(slot: string, name: string, items: [string, string, number, number, number, number][]) {
@@ -891,22 +881,6 @@ export const themeSwatches = [
   { name: "Amber", value: "#f59e0b" },
 ];
 
-export interface DiscountCode {
-  code: string;
-  percent: number;
-  label: string;
-}
-
-export const discountCodes: DiscountCode[] = [
-  { code: "FIT20", percent: 20, label: "20% off your order" },
-  { code: "WELCOME10", percent: 10, label: "10% off — new customers" },
-  { code: "SUMMER15", percent: 15, label: "15% summer sale" },
-];
-
-export function findDiscount(code: string): DiscountCode | undefined {
-  const c = code.trim().toUpperCase();
-  return discountCodes.find((d) => d.code === c);
-}
 
 export const niches = [
   "Weight Loss",

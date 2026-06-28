@@ -163,12 +163,6 @@ export interface SessionNote {
   note: string;
 }
 
-export interface CoachingResource {
-  id: string;
-  name: string;
-  type: "PDF" | "Doc" | "Sheet" | "Form";
-}
-
 // ---------- Diet Planner ----------
 export interface FoodItem {
   id: string;

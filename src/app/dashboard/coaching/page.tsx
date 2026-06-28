@@ -4,15 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   Edit2,
-  FileText,
   MessageCircle,
   Plus,
-  Send,
   Target,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useToast } from "@/components/ui/toast";
-import { coachingResources } from "@/lib/mock-data";
 import type { CoachingPackage, SessionNote } from "@/lib/types";
 import { formatCurrency, formatDate, uid } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
@@ -158,29 +155,6 @@ export default function CoachingPage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Resources */}
-      <Card>
-        <CardHeader><CardTitle>Coaching Resources</CardTitle></CardHeader>
-        <CardContent>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {coachingResources.map((r) => (
-              <div key={r.id} className="flex items-center gap-3 rounded-xl border border-border bg-background/40 p-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
-                  <FileText className="h-5 w-5" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold text-foreground">{r.name}</p>
-                  <p className="text-xs text-muted-foreground">{r.type}</p>
-                </div>
-                <Button size="icon-sm" variant="subtle" onClick={() => toast(`"${r.name}" sent to client`, { variant: "success" })} aria-label="Send to client">
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Package modal */}
       <PackageDialog

@@ -11,12 +11,11 @@ import {
   Minus,
   Plus,
   ShoppingBag,
-  Tag,
   Trash2,
   Youtube,
   X,
 } from "lucide-react";
-import { creator as seedCreator, findDiscount, type DiscountCode } from "@/lib/mock-data";
+import { creator as seedCreator } from "@/lib/mock-data";
 import type { CartItem, Creator, Product, Review } from "@/lib/types";
 import { compactNumber, formatCurrency } from "@/lib/utils";
 import { useApp } from "@/lib/store";
@@ -94,24 +93,11 @@ export default function StorefrontPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [checkout, setCheckout] = useState(false);
-  const [codeInput, setCodeInput] = useState("");
-  const [discount, setDiscount] = useState<DiscountCode | null>(null);
 
   const filtered = tab === "All" ? published : published.filter((p) => p.category === tab);
   const count = cart.reduce((s, i) => s + i.quantity, 0);
   const subtotal = cart.reduce((s, i) => s + i.product.price * i.quantity, 0);
-  const discountAmount = discount ? Math.round((subtotal * discount.percent) / 100) : 0;
-  const total = subtotal - discountAmount;
-
-  const applyCode = () => {
-    const found = findDiscount(codeInput);
-    if (found) {
-      setDiscount(found);
-      toast(`Code applied — ${found.label}`, { variant: "success" });
-    } else {
-      toast("Invalid discount code", { variant: "error" });
-    }
-  };
+  const total = subtotal;
 
   const add = (p: Product) => {
     setCart((prev) => {
@@ -344,46 +330,11 @@ export default function StorefrontPage() {
               ))}
             </div>
             <div className="border-t border-border p-4">
-              {/* Discount code */}
-              {discount ? (
-                <div className="mb-3 flex items-center justify-between rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm">
-                  <span className="flex items-center gap-1.5 font-semibold text-success">
-                    <Tag className="h-3.5 w-3.5" /> {discount.code} · {discount.percent}% off
-                  </span>
-                  <button onClick={() => { setDiscount(null); setCodeInput(""); }} aria-label="Remove code" className="text-success/70 hover:text-success">
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              ) : (
-                <div className="mb-3 flex gap-2">
-                  <input
-                    value={codeInput}
-                    onChange={(e) => setCodeInput(e.target.value.toUpperCase().slice(0, 32))}
-                    onKeyDown={(e) => e.key === "Enter" && applyCode()}
-                    maxLength={32}
-                    placeholder="Discount code"
-                    className="h-9 flex-1 rounded-lg border border-input bg-background px-3 text-sm uppercase text-foreground placeholder:normal-case placeholder:text-muted-foreground focus-visible:border-primary/60 focus-visible:outline-none"
-                  />
-                  <Button size="sm" variant="subtle" onClick={applyCode}>Apply</Button>
-                </div>
-              )}
-              {!discount && (
-                <p className="mb-3 text-center text-xs text-muted-foreground">
-                  Have a code? Try <span className="font-bold" style={{ color: accent }}>FIT20</span>
-                </p>
-              )}
-
               <div className="mb-3 space-y-1 text-sm">
                 <div className="flex items-center justify-between text-muted-foreground">
                   <span>Subtotal</span>
                   <span>{formatCurrency(subtotal)}</span>
                 </div>
-                {discountAmount > 0 && (
-                  <div className="flex items-center justify-between text-success">
-                    <span>Discount</span>
-                    <span>−{formatCurrency(discountAmount)}</span>
-                  </div>
-                )}
                 <div className="flex items-center justify-between border-t border-border pt-1.5 text-base font-bold text-foreground">
                   <span>Total</span>
                   <span>{formatCurrency(total)}</span>
@@ -404,13 +355,10 @@ export default function StorefrontPage() {
         total={total}
         accent={accent}
         creatorId={profile.id}
-        discountCode={discount?.code}
         storeName={profile.name}
         onPaid={() => {
           // Orders are created server-side after Razorpay verifies the payment.
           setCart([]);
-          setDiscount(null);
-          setCodeInput("");
           toast("Thank you for your purchase!", { variant: "success" });
         }}
       />

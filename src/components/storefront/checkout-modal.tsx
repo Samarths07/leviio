@@ -32,7 +32,6 @@ export function CheckoutModal({
   total,
   accent,
   creatorId,
-  discountCode,
   storeName,
   onPaid,
 }: {
@@ -43,8 +42,6 @@ export function CheckoutModal({
   accent: string;
   /** The store owner whose products are being purchased. */
   creatorId: string;
-  /** Validated discount code applied to the cart (re-checked server-side). */
-  discountCode?: string;
   /** Store/coach name shown in the Razorpay popup. */
   storeName: string;
   /** Called with the created orders after a verified payment. */
@@ -99,7 +96,7 @@ export function CheckoutModal({
     const res = await payWithRazorpay<{ orders: Order[] }>({
       // Intent is stored server-side in the Razorpay order notes so the webhook
       // can fulfill it even if the buyer closes the tab.
-      orderPayload: { purpose: "storefront", creatorId, items: lineItems, discountCode, customer },
+      orderPayload: { purpose: "storefront", creatorId, items: lineItems, customer },
       name: storeName,
       description: `${items.length} item${items.length === 1 ? "" : "s"} from ${storeName}`,
       prefill: { name: customer.name, email: customer.email },

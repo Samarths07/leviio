@@ -1,7 +1,6 @@
 import { fetchRazorpayOrder } from "./server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { rowToOrder } from "@/lib/supabase/db";
-import { findDiscount } from "@/lib/mock-data";
 import { newTrialExpiry } from "@/lib/utils";
 import { PRO_PERIOD_DAYS } from "@/lib/billing";
 import { sendEmail } from "@/lib/email/send";
@@ -80,9 +79,6 @@ export async function fulfillRazorpayOrder(orderId: string): Promise<FulfillResu
       .in("id", ids);
     if (!products || products.length === 0) return { ok: false, error: "No items." };
 
-    const percent = notes.discount ? findDiscount(notes.discount)?.percent ?? 0 : 0;
-    const factor = 1 - percent / 100;
-
     let subtotal = 0;
     const lines: { id: string; name: string; type: ProductType; qty: number; price: number }[] = [];
     for (const it of parsed) {
@@ -99,7 +95,7 @@ export async function fulfillRazorpayOrder(orderId: string): Promise<FulfillResu
     }
 
     // Cross-check the recomputed amount against what was actually paid.
-    const expectedPaise = Math.round(subtotal * factor) * 100;
+    const expectedPaise = Math.round(subtotal) * 100;
     if (rzp.amount !== expectedPaise) return { ok: false, error: "Amount mismatch." };
 
     const date = new Date().toISOString().slice(0, 10);
@@ -114,7 +110,7 @@ export async function fulfillRazorpayOrder(orderId: string): Promise<FulfillResu
       product_id: l.id,
       type: l.type,
       quantity: l.qty,
-      amount: Math.round(l.price * l.qty * factor),
+      amount: Math.round(l.price * l.qty),
       date,
       status: "Completed",
       method: "Razorpay",

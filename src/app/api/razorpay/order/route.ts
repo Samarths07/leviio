@@ -6,7 +6,6 @@ import {
 } from "@/lib/razorpay/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient as createServerSupabase } from "@/lib/supabase/server";
-import { findDiscount } from "@/lib/mock-data";
 import { PRO_PRICE_INR } from "@/lib/billing";
 
 export const runtime = "nodejs";
@@ -16,8 +15,7 @@ export const runtime = "nodejs";
  * client can never tamper with prices.
  *
  *  - purpose "subscription" → fixed Pro price, tied to the signed-in creator.
- *  - purpose "storefront"   → sum of the creator's published product prices,
- *                             with an optional validated discount code.
+ *  - purpose "storefront"   → sum of the creator's published product prices.
  */
 export async function POST(req: Request) {
   if (!razorpayConfigured()) {
@@ -57,7 +55,6 @@ export async function POST(req: Request) {
   if (purpose === "storefront") {
     const creatorId = String(body.creatorId ?? "");
     const items = Array.isArray(body.items) ? body.items : [];
-    const discountCode = body.discountCode ? String(body.discountCode) : "";
     if (!creatorId || items.length === 0) {
       return NextResponse.json({ error: "Invalid order." }, { status: 400 });
     }
@@ -85,8 +82,7 @@ export async function POST(req: Request) {
       compact.push(`${p.id}:${qty}`);
     }
 
-    const percent = discountCode ? findDiscount(discountCode)?.percent ?? 0 : 0;
-    const amountInr = Math.round(subtotal * (1 - percent / 100));
+    const amountInr = Math.round(subtotal);
     if (amountInr <= 0) {
       return NextResponse.json({ error: "Invalid amount." }, { status: 400 });
     }
@@ -102,7 +98,6 @@ export async function POST(req: Request) {
       purpose: "storefront",
       creatorId,
       items: compact.join(",").slice(0, 256),
-      discount: discountCode.slice(0, 40),
       name: (customer.name ?? "").slice(0, 120),
       email: (customer.email ?? "").slice(0, 120),
       address: (customer.address ?? "").slice(0, 200),
