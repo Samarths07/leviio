@@ -7,13 +7,11 @@ import { Card } from "@/components/ui/card";
 import { DashboardPreview } from "@/components/marketing/dashboard-preview";
 import { PricingSection } from "@/components/marketing/pricing-section";
 import { Testimonials } from "@/components/marketing/testimonials";
-import { WelcomeIntro } from "@/components/marketing/welcome-intro";
 import { cn } from "@/lib/utils";
 
 export default function LandingPage() {
   return (
     <div>
-      <WelcomeIntro />
       {/* Hero */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 -z-10">

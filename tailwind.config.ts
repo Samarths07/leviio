@@ -83,26 +83,6 @@ const config: Config = {
           from: { height: "0" },
           to: { height: "var(--radix-accordion-content-height)" },
         },
-        "fade-up": {
-          from: { opacity: "0", transform: "translateY(22px)" },
-          to: { opacity: "1", transform: "translateY(0)" },
-        },
-        "pop-in": {
-          from: { opacity: "0", transform: "scale(0.92) translateY(16px)" },
-          to: { opacity: "1", transform: "scale(1) translateY(0)" },
-        },
-        float: {
-          "0%, 100%": { transform: "translateY(0) translateX(0)" },
-          "50%": { transform: "translateY(-26px) translateX(14px)" },
-        },
-        "gradient-pan": {
-          "0%, 100%": { backgroundPosition: "0% 50%" },
-          "50%": { backgroundPosition: "100% 50%" },
-        },
-        "glow-pulse": {
-          "0%, 100%": { opacity: "0.55", transform: "scale(1)" },
-          "50%": { opacity: "0.9", transform: "scale(1.05)" },
-        },
       },
       animation: {
         "fade-in": "fade-in 0.4s ease-out both",
@@ -110,11 +90,6 @@ const config: Config = {
         "slide-in-right": "slide-in-right 0.3s ease-out both",
         "slide-in-left": "slide-in-left 0.3s ease-out both",
         "toast-in": "toast-in 0.3s ease-out both",
-        "fade-up": "fade-up 0.6s cubic-bezier(0.16,1,0.3,1) both",
-        "pop-in": "pop-in 0.5s cubic-bezier(0.16,1,0.3,1) both",
-        float: "float 9s ease-in-out infinite",
-        "gradient-pan": "gradient-pan 12s ease infinite",
-        "glow-pulse": "glow-pulse 4s ease-in-out infinite",
       },
     },
   },
