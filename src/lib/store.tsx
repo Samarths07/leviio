@@ -179,7 +179,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const reportError = useCallback(
     (err: unknown, what: string) => {
       console.error(`[leviio] failed to save ${what}`, err);
-      toast(`Couldn't save ${what}. Check your connection.`, { variant: "error" });
+      // Surface the real reason (e.g. a missing column) instead of a vague
+      // "check your connection" so schema/setup issues are obvious.
+      const detail = err instanceof Error ? err.message : "";
+      toast(detail || `Couldn't save ${what}. Check your connection.`, {
+        variant: "error",
+      });
     },
     [toast]
   );
