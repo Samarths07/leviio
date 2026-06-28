@@ -8,6 +8,7 @@ import {
   Edit2,
   LayoutGrid,
   Plus,
+  Sparkles,
   Trash2,
   UserPlus,
 } from "lucide-react";
@@ -24,6 +25,7 @@ import { Tabs } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/shared/empty-state";
 import { DietBuilder } from "@/components/dashboard/diet-builder";
 import { AssignClientDialog } from "@/components/dashboard/assign-client-dialog";
+import { AiDietDialog } from "@/components/dashboard/ai-diet-dialog";
 
 const tabs = [
   { value: "plans", label: "My Plans" },
@@ -52,9 +54,14 @@ function DietInner() {
   const [tab, setTab] = useState(params.get("tab") === "create" ? "create" : "plans");
   const [builderInit, setBuilderInit] = useState<MealPlan | null>(null);
   const [assigning, setAssigning] = useState<MealPlan | null>(null);
+  const [aiOpen, setAiOpen] = useState(false);
 
   const startNew = () => {
     setBuilderInit(newPlan(7));
+    setTab("create");
+  };
+  const onAiGenerated = (plan: MealPlan) => {
+    setBuilderInit(plan);
     setTab("create");
   };
   const edit = (p: MealPlan) => {
@@ -87,9 +94,14 @@ function DietInner() {
             Build macro-balanced meal plans for your clients.
           </p>
         </div>
-        <Button onClick={startNew}>
-          <Plus className="h-4 w-4" /> New Plan
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setAiOpen(true)}>
+            <Sparkles className="h-4 w-4" /> Generate with AI
+          </Button>
+          <Button onClick={startNew}>
+            <Plus className="h-4 w-4" /> New Plan
+          </Button>
+        </div>
       </div>
 
       <Tabs tabs={tabs} value={tab} onChange={setTab} />
@@ -99,8 +111,13 @@ function DietInner() {
           <EmptyState
             icon={Apple}
             title="No meal plans yet"
-            description="Create your first meal plan or start from a template."
-            action={<Button onClick={startNew}><Plus className="h-4 w-4" /> New Plan</Button>}
+            description="Generate one with AI, build from scratch, or start from a template."
+            action={
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button onClick={() => setAiOpen(true)}><Sparkles className="h-4 w-4" /> Generate with AI</Button>
+                <Button variant="outline" onClick={startNew}><Plus className="h-4 w-4" /> New Plan</Button>
+              </div>
+            }
           />
         ) : (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -182,6 +199,8 @@ function DietInner() {
         itemName={assigning?.name}
         onAssign={assignToClient}
       />
+
+      <AiDietDialog open={aiOpen} onClose={() => setAiOpen(false)} onGenerated={onAiGenerated} />
     </div>
   );
 }
