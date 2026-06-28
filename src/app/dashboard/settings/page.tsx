@@ -123,6 +123,17 @@ function ProfileTab({ user, onSave, toast }: any) {
               <option>Asia/Tokyo</option>
             </Select>
           </div>
+          <div className="sm:col-span-2">
+            <Label>Default meeting link</Label>
+            <Input
+              defaultValue={user.meetingLink}
+              onBlur={(e) => onSave({ meetingLink: e.target.value.trim() })}
+              placeholder="https://meet.google.com/your-room  or  your Zoom link"
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Used as the join link for booked coaching sessions.
+            </p>
+          </div>
         </div>
         <div>
           <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">Social links</p>

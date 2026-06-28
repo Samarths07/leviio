@@ -67,6 +67,7 @@ export function rowToCreator(r: Row): Creator {
     niche: (r.niche as string) ?? "",
     bio: (r.bio as string) ?? "",
     location: (r.location as string) ?? "",
+    meetingLink: (r.meeting_link as string) ?? undefined,
     avatarSeed: (r.avatar_seed as string) ?? "",
     avatarUrl: (r.avatar_url as string) ?? undefined,
     bannerColor: (r.banner_color as string) ?? "#7c3aed",
@@ -90,6 +91,7 @@ function creatorToProfileRow(c: Partial<Creator>): Row {
   if (c.niche !== undefined) row.niche = c.niche;
   if (c.bio !== undefined) row.bio = c.bio;
   if (c.location !== undefined) row.location = c.location;
+  if (c.meetingLink !== undefined) row.meeting_link = c.meetingLink;
   if (c.avatarSeed !== undefined) row.avatar_seed = c.avatarSeed;
   if (c.avatarUrl !== undefined) row.avatar_url = c.avatarUrl;
   if (c.bannerColor !== undefined) row.banner_color = c.bannerColor;

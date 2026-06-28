@@ -25,6 +25,7 @@ create table if not exists public.profiles (
   location        text default '',
   avatar_seed     text default '',
   avatar_url      text default '',
+  meeting_link    text default '',
   banner_color    text default '#7c3aed',
   followers       integer default 0,
   plan            text default 'Free' check (plan in ('Free', 'Pro')),
@@ -210,7 +211,7 @@ create policy "own profile" on public.profiles
 -- by its owner (the "own profile" policy above).
 create or replace view public.public_profiles as
   select id, name, username, niche, bio, location,
-         avatar_seed, avatar_url, banner_color, followers, socials
+         avatar_seed, avatar_url, meeting_link, banner_color, followers, socials
   from public.profiles;
 
 grant select on public.public_profiles to anon, authenticated;

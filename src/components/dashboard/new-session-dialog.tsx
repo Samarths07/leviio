@@ -34,7 +34,7 @@ export function NewSessionDialog({
   onClose: () => void;
   defaultDate?: string;
 }) {
-  const { clients, addEvent } = useApp();
+  const { clients, addEvent, user } = useApp();
   const { toast } = useToast();
   const [form, setForm] = useState({
     type: "Coaching Session" as EventType,
@@ -42,7 +42,7 @@ export function NewSessionDialog({
     date: defaultDate ?? "2026-06-18",
     time: "10:00",
     duration: "60",
-    link: "https://meet.google.com/abc-defg-hij",
+    link: user?.meetingLink ?? "",
     notes: "",
     reminder: true,
   });

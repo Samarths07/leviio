@@ -35,9 +35,9 @@ function nextDays(count: number) {
 
 export default function BookingPage() {
   const { id } = useParams<{ id: string }>();
-  const { orders, updateOrder, addEvent, hydrated, user } = useApp();
+  const { orders, updateOrder, addEvent, hydrated, user, coach } = useApp();
   const { toast } = useToast();
-  const creator = user ?? seedCreator;
+  const creator = coach ?? user ?? seedCreator;
   const accent = creator.bannerColor;
 
   const days = useMemo(() => nextDays(10), []);
@@ -67,7 +67,7 @@ export default function BookingPage() {
       date: dateStr,
       time,
       duration: 60,
-      meetingLink: "https://meet.google.com/abc-defg-hij",
+      meetingLink: creator.meetingLink || undefined,
       notes: `Booked via storefront. Order #${order.id}. Client: ${order.client}${order.email ? ` (${order.email})` : ""}.`,
       color: accent,
     };

@@ -9,6 +9,8 @@ export interface Creator {
   niche: string;
   bio: string;
   location: string;
+  /** Default meeting room URL (Zoom/Meet/etc.) used for booked coaching sessions. */
+  meetingLink?: string;
   avatarSeed: string;
   /** Uploaded profile photo URL (Supabase Storage); falls back to a generated avatar. */
   avatarUrl?: string;
