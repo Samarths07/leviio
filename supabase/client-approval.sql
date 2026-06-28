@@ -1,30 +1,25 @@
 -- ============================================================================
 -- Leviio — Client portal approval gate
 -- ----------------------------------------------------------------------------
--- Adds the portal_status column used to gate client portal access. A client
--- added by a creator starts 'pending'; the creator approves them once (one
--- click on the Clients page) before they can see the portal. Storefront buyers
--- are auto-approved by the app.
+-- Adds the portal_status column used to gate client portal access:
+--   'none'     = added by the coach, hasn't signed up yet (no request).
+--   'pending'  = the client signed up → request sent → coach can Approve.
+--   'approved' = full portal access. (Storefront buyers are auto-approved.)
 --
--- Safe to run anytime — it does NOT touch existing data. Paste into
--- Supabase → SQL Editor → Run.
+-- The coach only sees an Approve button once a client reaches 'pending' (i.e.
+-- after they sign up at the portal). Safe to run anytime — it does NOT touch
+-- existing data. Paste into Supabase → SQL Editor → Run.
 -- ============================================================================
 
 alter table public.clients
-  add column if not exists portal_status text not null default 'pending';
+  add column if not exists portal_status text not null default 'none';
 
--- Constrain to the two valid states (added separately so re-runs don't error).
-do $$
-begin
-  if not exists (
-    select 1 from pg_constraint where conname = 'clients_portal_status_check'
-  ) then
-    alter table public.clients
-      add constraint clients_portal_status_check
-      check (portal_status in ('pending', 'approved'));
-  end if;
-end $$;
+-- Replace any older 2-state constraint with the 3-state one.
+alter table public.clients
+  drop constraint if exists clients_portal_status_check;
+alter table public.clients
+  add constraint clients_portal_status_check
+  check (portal_status in ('none', 'pending', 'approved'));
 
--- OPTIONAL: if you already have existing clients you trust and want them to
--- have portal access immediately, approve them all in one go by uncommenting:
+-- OPTIONAL: approve all existing clients immediately (uncomment to run):
 -- update public.clients set portal_status = 'approved';

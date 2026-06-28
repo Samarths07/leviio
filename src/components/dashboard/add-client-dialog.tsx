@@ -59,7 +59,7 @@ export function AddClientDialog({
       location: "—",
       goal: form.goal,
       status: "Active",
-      portalStatus: "pending",
+      portalStatus: "none",
       avatarSeed: form.name,
       startDate: new Date().toISOString(),
       weeksTotal: 12,

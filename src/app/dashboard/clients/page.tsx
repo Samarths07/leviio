@@ -87,7 +87,9 @@ function ClientsInner() {
           {filtered.map((c) => {
             const progress = (c.weeksCompleted / c.weeksTotal) * 100;
             const lost = +(c.startWeight - c.currentWeight).toFixed(1);
-            const pending = !isGuestClient(c) && c.portalStatus !== "approved";
+            const managed = !isGuestClient(c);
+            const pending = managed && c.portalStatus === "pending";
+            const notSignedUp = managed && (c.portalStatus ?? "none") === "none";
             const approve = () => {
               approveClient(c.id);
               toast(`${c.name} can now access the portal`, { variant: "success" });
@@ -99,7 +101,8 @@ function ClientsInner() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <p className="truncate font-bold text-foreground">{c.name}</p>
-                      {pending && <Badge variant="warning">Pending approval</Badge>}
+                      {pending && <Badge variant="warning">Approval requested</Badge>}
+                      {notSignedUp && <Badge variant="outline">Awaiting sign-up</Badge>}
                       {c.status === "VIP" && <Badge variant="warning">VIP</Badge>}
                       {c.status === "Inactive" && <Badge variant="outline">Inactive</Badge>}
                     </div>

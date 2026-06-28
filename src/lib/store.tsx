@@ -237,6 +237,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setClientUser(null);
         return null;
       }
+      // First time a coach-added client signs in, turn their 'none' record into
+      // a 'pending' request so the coach gets an Approve button.
+      if (managed?.client && resolved.portalStatus === "none") {
+        try {
+          await fetch("/api/portal/request-access", { method: "POST" });
+        } catch {
+          // best-effort; the gate still blocks access until approved
+        }
+        resolved = { ...resolved, portalStatus: "pending" };
+      }
       setClientUser(resolved);
       setOrders(ords);
       setClients([resolved]);
