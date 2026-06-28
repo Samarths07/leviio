@@ -108,6 +108,8 @@ interface AppContextValue {
   clientForgotPassword: (email: string) => Promise<{ ok: boolean; error?: string }>;
   updateAuthPassword: (password: string) => Promise<{ ok: boolean; error?: string }>;
   clientLogout: () => void;
+  /** Re-fetch the signed-in client's own data (used by the approval waiting screen). */
+  refreshClient: () => Promise<void>;
   // products
   products: Product[];
   addProduct: (p: Product) => void;
@@ -117,6 +119,8 @@ interface AppContextValue {
   clients: Client[];
   addClient: (c: Client) => void;
   updateClient: (id: string, patch: Partial<Client>) => void;
+  /** Grant a managed client portal access (one-time approval). */
+  approveClient: (id: string) => void;
   // meal plans
   mealPlans: MealPlan[];
   saveMealPlan: (p: MealPlan) => void;
@@ -640,6 +644,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     sb?.auth.signOut();
   }, [sb]);
 
+  // Re-pull the signed-in client's record (e.g. to pick up a fresh approval).
+  const refreshClient = useCallback(async () => {
+    if (clientUser?.email) await loadClientData(clientUser.email);
+  }, [clientUser, loadClientData]);
+
   // Email a password-reset link (needs SMTP configured in Supabase).
   const clientForgotPassword = useCallback(
     async (email: string): Promise<{ ok: boolean; error?: string }> => {
@@ -718,6 +727,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return next;
       }),
     [sb, user, reportError]
+  );
+  const approveClient = useCallback(
+    (id: string) => updateClient(id, { portalStatus: "approved" }),
+    [updateClient]
   );
 
   // ---- meal plans ---------------------------------------------------------
@@ -907,6 +920,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       clientForgotPassword,
       updateAuthPassword,
       clientLogout,
+      refreshClient,
       products,
       addProduct,
       updateProduct,
@@ -914,6 +928,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       clients,
       addClient,
       updateClient,
+      approveClient,
       mealPlans,
       saveMealPlan,
       deleteMealPlan,
@@ -939,9 +954,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }),
     [
       hydrated, user, login, signup, logout, updateUser,
-      coach, clientUser, clientLogin, clientSignup, clientForgotPassword, updateAuthPassword, clientLogout,
+      coach, clientUser, clientLogin, clientSignup, clientForgotPassword, updateAuthPassword, clientLogout, refreshClient,
       products, addProduct, updateProduct, deleteProduct,
-      clients, addClient, updateClient,
+      clients, addClient, updateClient, approveClient,
       mealPlans, saveMealPlan, deleteMealPlan,
       programs, saveProgram, deleteProgram,
       events, addEvent, updateEvent, deleteEvent,

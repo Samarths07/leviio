@@ -1,15 +1,17 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Loader2, LogOut, Store } from "lucide-react";
+import { Clock, Loader2, LogOut, RefreshCw, Store } from "lucide-react";
 import { useApp } from "@/lib/store";
+import { isGuestClient } from "@/lib/portal";
 import { creator as seedCreator } from "@/lib/mock-data";
 import { portalNavItems, portalPageTitle } from "@/lib/portal-nav";
 import { Logo } from "@/components/shared/logo";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 function isActive(pathname: string, href: string) {
@@ -25,7 +27,8 @@ export default function PortalLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { clientUser, clientLogout, user, hydrated, coach: portalCoach } = useApp();
+  const { clientUser, clientLogout, refreshClient, user, hydrated, coach: portalCoach } = useApp();
+  const [checking, setChecking] = useState(false);
 
   // Auth pages live under /portal but render without the shell/guard.
   const isAuthPage = pathname === "/portal/login" || pathname === "/portal/reset";
@@ -49,6 +52,51 @@ export default function PortalLayout({
     clientLogout();
     router.replace("/portal/login");
   };
+
+  // Approval gate: a managed client (added by the coach) must be approved once
+  // before they can see the portal. Storefront buyers are auto-approved.
+  const awaitingApproval =
+    !isGuestClient(clientUser) && clientUser.portalStatus !== "approved";
+  if (awaitingApproval) {
+    const recheck = async () => {
+      setChecking(true);
+      await refreshClient();
+      setChecking(false);
+    };
+    return (
+      <div className="flex min-h-dvh flex-col bg-background">
+        <header className="border-b border-border">
+          <div className="mx-auto flex h-14 max-w-5xl items-center px-4">
+            <Logo />
+          </div>
+        </header>
+        <main className="flex flex-1 items-center justify-center px-5 py-10">
+          <div className="w-full max-w-sm text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-warning/15 text-warning">
+              <Clock className="h-7 w-7" />
+            </div>
+            <h1 className="mt-4 text-xl font-extrabold tracking-tight text-foreground">
+              Waiting for approval
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Your account is ready. {coach?.name ? `${coach.name} needs` : "Your coach needs"} to
+              approve your portal access — you&apos;ll get in as soon as they do.
+            </p>
+            <Button onClick={recheck} className="mt-5 w-full" disabled={checking}>
+              {checking ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              {checking ? "Checking…" : "Check again"}
+            </Button>
+            <button
+              onClick={logout}
+              className="mt-3 text-sm font-semibold text-muted-foreground hover:text-foreground"
+            >
+              Log out
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-dvh">

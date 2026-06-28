@@ -24,6 +24,7 @@ export function makeGuestClient(email: string, name: string): Client {
     location: "",
     goal: "Maintain",
     status: "Active",
+    portalStatus: "approved", // storefront buyers don't need approval — they paid
     avatarSeed: name || email,
     startDate: new Date().toISOString(),
     weeksTotal: 0,

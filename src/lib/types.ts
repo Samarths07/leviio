@@ -122,6 +122,12 @@ export interface Client {
   location: string;
   goal: ClientGoal;
   status: ClientStatus;
+  /**
+   * Portal access gate. "pending" = the client (or buyer) signed up but the
+   * creator hasn't approved them yet → portal shows a waiting screen.
+   * "approved" = full portal access. Storefront buyers are auto-approved.
+   */
+  portalStatus?: "pending" | "approved";
   avatarSeed: string;
   startDate: string;
   weeksTotal: number;

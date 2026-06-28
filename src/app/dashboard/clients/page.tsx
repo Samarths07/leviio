@@ -3,8 +3,10 @@
 import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Plus, Search, Users } from "lucide-react";
+import { Check, Plus, Search, Users } from "lucide-react";
 import { useApp } from "@/lib/store";
+import { useToast } from "@/components/ui/toast";
+import { isGuestClient } from "@/lib/portal";
 import { formatDate } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +26,8 @@ const filters = [
 
 function ClientsInner() {
   const params = useSearchParams();
-  const { clients } = useApp();
+  const { clients, approveClient } = useApp();
+  const { toast } = useToast();
   const [open, setOpen] = useState(params.get("new") === "1");
   const [filter, setFilter] = useState("All");
   const [query, setQuery] = useState("");
@@ -84,6 +87,11 @@ function ClientsInner() {
           {filtered.map((c) => {
             const progress = (c.weeksCompleted / c.weeksTotal) * 100;
             const lost = +(c.startWeight - c.currentWeight).toFixed(1);
+            const pending = !isGuestClient(c) && c.portalStatus !== "approved";
+            const approve = () => {
+              approveClient(c.id);
+              toast(`${c.name} can now access the portal`, { variant: "success" });
+            };
             return (
               <Card key={c.id} hover className="p-5">
                 <div className="flex items-start gap-3">
@@ -91,6 +99,7 @@ function ClientsInner() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <p className="truncate font-bold text-foreground">{c.name}</p>
+                      {pending && <Badge variant="warning">Pending approval</Badge>}
                       {c.status === "VIP" && <Badge variant="warning">VIP</Badge>}
                       {c.status === "Inactive" && <Badge variant="outline">Inactive</Badge>}
                     </div>
@@ -128,12 +137,19 @@ function ClientsInner() {
                       <p className="text-muted-foreground">Since start</p>
                     </div>
                   </div>
-                  <Link
-                    href={`/dashboard/clients/${c.id}`}
-                    className={buttonVariants({ variant: "outline", size: "sm" })}
-                  >
-                    View Profile
-                  </Link>
+                  <div className="flex gap-1.5">
+                    {pending && (
+                      <Button size="sm" onClick={approve}>
+                        <Check className="h-3.5 w-3.5" /> Approve
+                      </Button>
+                    )}
+                    <Link
+                      href={`/dashboard/clients/${c.id}`}
+                      className={buttonVariants({ variant: "outline", size: "sm" })}
+                    >
+                      View Profile
+                    </Link>
+                  </div>
                 </div>
               </Card>
             );

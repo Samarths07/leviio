@@ -90,9 +90,9 @@ export default function PortalLoginPage() {
       toast("Welcome!", { variant: "success" });
       router.push("/portal");
     } else {
-      // Valid account, but this email has no purchases — sign back out.
+      // Valid account, but this email isn't a client or buyer — sign back out.
       setLoading(false);
-      toast("No purchases found for this email. Use the email from your order.", {
+      toast("This email isn't linked to a coach yet. Ask your coach to add you, or use your order email.", {
         variant: "error",
       });
       clientLogout();
@@ -127,7 +127,7 @@ export default function PortalLoginPage() {
 
           <form onSubmit={submit} className="mt-6 space-y-4">
             <div>
-              <Label htmlFor="email">Email used at checkout</Label>
+              <Label htmlFor="email">Your email</Label>
               <Input
                 id="email"
                 type="email"
@@ -229,7 +229,7 @@ export default function PortalLoginPage() {
             </p>
           )}
           <p className="mt-3 text-center text-xs text-muted-foreground">
-            Use the email address you entered when you bought a product.
+            Use the email your coach added you with (or the email from your order).
           </p>
         </div>
       </main>

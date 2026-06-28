@@ -59,6 +59,7 @@ export function AddClientDialog({
       location: "—",
       goal: form.goal,
       status: "Active",
+      portalStatus: "pending",
       avatarSeed: form.name,
       startDate: new Date().toISOString(),
       weeksTotal: 12,
@@ -76,7 +77,7 @@ export function AddClientDialog({
       payments: [],
     };
     addClient(client);
-    toast(`${client.name} added to your clients`, { variant: "success" });
+    toast(`${client.name} added. They can sign up at the portal with this email — approve them when ready.`, { variant: "success" });
     setForm({ ...empty });
     setErrors({});
     onClose();
