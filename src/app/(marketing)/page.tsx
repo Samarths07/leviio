@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Play, Star } from "lucide-react";
+import { ArrowRight, Star } from "lucide-react";
 import { features, howItWorks } from "@/lib/marketing";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -46,8 +46,8 @@ export default function LandingPage() {
                 href="/features"
                 className={buttonVariants({ variant: "outline", size: "lg" })}
               >
-                <Play className="h-4 w-4" />
-                See a Demo
+                Explore Features
+                <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
 
