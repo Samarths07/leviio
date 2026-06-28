@@ -275,7 +275,12 @@ export function rowToClient(r: Row): Client {
     location: (m.location as string) ?? "",
     goal: (r.goal as Client["goal"]) ?? "Maintain",
     status: (r.status as Client["status"]) ?? "Active",
-    portalStatus: (r.portal_status as Client["portalStatus"]) ?? "none",
+    // portalStatus lives inside the metrics jsonb (no dedicated column needed);
+    // fall back to a legacy portal_status column if one exists.
+    portalStatus:
+      (m.portalStatus as Client["portalStatus"]) ??
+      (r.portal_status as Client["portalStatus"]) ??
+      "none",
     avatarSeed: (r.avatar_seed as string) ?? "",
     startDate: (r.start_date as string) ?? new Date().toISOString(),
     weeksTotal: (m.weeksTotal as number) ?? 0,
@@ -306,7 +311,6 @@ function clientToRow(creatorId: string, c: Client): Row {
     phone: c.phone,
     goal: c.goal,
     status: c.status,
-    portal_status: c.portalStatus ?? "none",
     avatar_seed: c.avatarSeed,
     start_date: c.startDate,
     meal_plan_id: c.mealPlanId ?? null,
@@ -315,6 +319,7 @@ function clientToRow(creatorId: string, c: Client): Row {
     metrics: {
       age: c.age,
       location: c.location,
+      portalStatus: c.portalStatus ?? "none",
       weeksTotal: c.weeksTotal,
       weeksCompleted: c.weeksCompleted,
       height: c.height,

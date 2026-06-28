@@ -70,9 +70,6 @@ create table if not exists public.clients (
   phone         text default '',
   goal          text default 'Maintain',
   status        text default 'Active' check (status in ('Active', 'Inactive', 'VIP')),
-  -- Portal access gate: 'none' = added but not signed up; 'pending' = signed up
-  -- and awaiting the creator's one-time approval; 'approved' = full access.
-  portal_status text not null default 'none' check (portal_status in ('none', 'pending', 'approved')),
   avatar_seed   text default '',
   start_date    timestamptz default now(),
   meal_plan_id  text,

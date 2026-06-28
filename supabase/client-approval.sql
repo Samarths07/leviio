@@ -1,25 +1,16 @@
 -- ============================================================================
 -- Leviio — Client portal approval gate
 -- ----------------------------------------------------------------------------
--- Adds the portal_status column used to gate client portal access:
---   'none'     = added by the coach, hasn't signed up yet (no request).
---   'pending'  = the client signed up → request sent → coach can Approve.
---   'approved' = full portal access. (Storefront buyers are auto-approved.)
+-- NO MIGRATION REQUIRED.
 --
--- The coach only sees an Approve button once a client reaches 'pending' (i.e.
--- after they sign up at the portal). Safe to run anytime — it does NOT touch
--- existing data. Paste into Supabase → SQL Editor → Run.
+-- The client's portal access state ('none' -> 'pending' -> 'approved') is now
+-- stored inside the existing clients.metrics jsonb column, so there is nothing
+-- to run here. Adding/saving clients works on the base schema as-is.
+--
+-- If you previously ran an older version of this file that added a
+-- `portal_status` COLUMN, it's harmless to leave it — the app ignores it. To
+-- remove it (optional cleanup):
+--
+--   alter table public.clients drop constraint if exists clients_portal_status_check;
+--   alter table public.clients drop column if exists portal_status;
 -- ============================================================================
-
-alter table public.clients
-  add column if not exists portal_status text not null default 'none';
-
--- Replace any older 2-state constraint with the 3-state one.
-alter table public.clients
-  drop constraint if exists clients_portal_status_check;
-alter table public.clients
-  add constraint clients_portal_status_check
-  check (portal_status in ('none', 'pending', 'approved'));
-
--- OPTIONAL: approve all existing clients immediately (uncomment to run):
--- update public.clients set portal_status = 'approved';
