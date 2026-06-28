@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Eye, EyeOff, Loader2, Wand2 } from "lucide-react";
 import type { Client, ClientGoal } from "@/lib/types";
 import { uid } from "@/lib/utils";
 import { Dialog } from "@/components/ui/dialog";
@@ -14,6 +15,13 @@ import { coachingPackages } from "@/lib/mock-data";
 
 const goals: ClientGoal[] = ["Weight Loss", "Muscle Gain", "Maintain", "Athletic Performance"];
 
+function randomPassword() {
+  const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  let out = "";
+  for (let i = 0; i < 10; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
+}
+
 const empty = {
   name: "",
   email: "",
@@ -24,6 +32,7 @@ const empty = {
   goal: "Weight Loss" as ClientGoal,
   notes: "",
   pkg: "",
+  password: "",
 };
 
 export function AddClientDialog({
@@ -37,29 +46,57 @@ export function AddClientDialog({
   const { toast } = useToast();
   const [form, setForm] = useState({ ...empty });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showPw, setShowPw] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errs: Record<string, string> = {};
     if (form.name.trim().length < 2) errs.name = "Enter a name";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = "Valid email required";
+    if (form.password.trim().length < 6) errs.password = "At least 6 characters";
     setErrors(errs);
     if (Object.keys(errs).length) return;
+
+    const email = form.email.trim();
+    const password = form.password.trim();
+
+    setSaving(true);
+    // Provision the portal login first — if this fails we don't create a client
+    // record that can't be logged into.
+    let res: Response;
+    try {
+      res = await fetch("/api/portal/provision-client", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+    } catch {
+      setSaving(false);
+      toast("Couldn't reach the server. Try again.", { variant: "error" });
+      return;
+    }
+    const data = await res.json().catch(() => ({}));
+    setSaving(false);
+    if (!res.ok) {
+      toast(data?.error ?? "Couldn't create the login.", { variant: "error" });
+      return;
+    }
 
     const weight = Number(form.weight) || 70;
     const client: Client = {
       id: uid("client"),
       name: form.name.trim(),
       handle: "@" + form.name.toLowerCase().replace(/\s/g, ""),
-      email: form.email.trim(),
+      email,
       phone: form.phone || "—",
       age: Number(form.age) || 30,
       location: "—",
       goal: form.goal,
       status: "Active",
-      portalStatus: "none",
+      portalStatus: "approved", // coach set the login → access granted immediately
       avatarSeed: form.name,
       startDate: new Date().toISOString(),
       weeksTotal: 12,
@@ -77,7 +114,12 @@ export function AddClientDialog({
       payments: [],
     };
     addClient(client);
-    toast(`${client.name} added. They can sign up at the portal with this email — approve them when ready.`, { variant: "success" });
+    toast(
+      data?.existed
+        ? `${client.name} added. This email already has a portal account — they log in with their existing password.`
+        : `${client.name} added. They can log in at the portal with ${email} and the password you set.`,
+      { variant: "success" }
+    );
     setForm({ ...empty });
     setErrors({});
     onClose();
@@ -136,13 +178,51 @@ export function AddClientDialog({
             <Label>Notes</Label>
             <Textarea value={form.notes} onChange={(e) => set({ notes: e.target.value })} rows={2} placeholder="Anything important about this client..." />
           </div>
+          <div className="col-span-2">
+            <Label>Portal password</Label>
+            <div className="relative">
+              <Input
+                type={showPw ? "text" : "password"}
+                value={form.password}
+                onChange={(e) => set({ password: e.target.value })}
+                placeholder="Set a password for the client"
+                className="pr-20"
+              />
+              <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => set({ password: randomPassword() })}
+                  aria-label="Generate password"
+                  className="rounded p-1 text-muted-foreground hover:text-foreground"
+                >
+                  <Wand2 className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowPw((v) => !v)}
+                  aria-label={showPw ? "Hide password" : "Show password"}
+                  className="rounded p-1 text-muted-foreground hover:text-foreground"
+                >
+                  {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+            {errors.password ? (
+              <p className="mt-1 text-xs text-danger">{errors.password}</p>
+            ) : (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Share this email + password with your client so they can log in.
+              </p>
+            )}
+          </div>
         </div>
         <div className="flex gap-3 pt-1">
-          <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
+          <Button type="button" variant="outline" className="flex-1" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
-          <Button type="submit" className="flex-1">
-            Add Client
+          <Button type="submit" className="flex-1" disabled={saving}>
+            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+            {saving ? "Creating…" : "Add Client"}
           </Button>
         </div>
       </form>
