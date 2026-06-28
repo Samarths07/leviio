@@ -233,7 +233,7 @@ function PackageDialog({
             <Input type="number" defaultValue={editing?.sessions ?? 4} onChange={(e) => setForm({ ...form, sessions: e.target.value })} />
           </div>
           <div>
-            <Label>Price (USD)</Label>
+            <Label>Price (INR)</Label>
             <Input type="number" defaultValue={editing?.price ?? 199} onChange={(e) => setForm({ ...form, price: e.target.value })} />
           </div>
         </div>

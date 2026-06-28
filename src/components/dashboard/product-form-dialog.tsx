@@ -216,7 +216,7 @@ export function ProductFormDialog({
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label>Price (USD)</Label>
+            <Label>Price (INR)</Label>
             <Input
               type="number"
               min={0}
