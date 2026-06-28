@@ -14,7 +14,7 @@ import { useApp } from "@/lib/store";
 import { useToast } from "@/components/ui/toast";
 import { uploadProductImage, uploadProductFile } from "@/lib/upload";
 
-const types: ProductType[] = ["Digital", "Physical", "Service", "Membership"];
+const types: ProductType[] = ["Digital", "Service", "Membership"];
 const categories: ProductCategory[] = ["Programs", "Nutrition", "Coaching", "Merch"];
 
 const empty = {

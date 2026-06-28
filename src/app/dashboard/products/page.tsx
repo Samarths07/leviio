@@ -27,7 +27,6 @@ import { ProductFormDialog } from "@/components/dashboard/product-form-dialog";
 const filterTabs = [
   { value: "All", label: "All" },
   { value: "Digital", label: "Digital" },
-  { value: "Physical", label: "Physical" },
   { value: "Service", label: "Services" },
 ];
 
