@@ -36,28 +36,41 @@ export async function POST(req: Request) {
     const client = rows?.[0];
     if (!client) return NextResponse.json({ error: "No coach linked to this account." }, { status: 404 });
 
-    const convId = `conv_${client.id as string}`;
-
-    // Ensure the thread exists (owned by the coach).
+    // Find-or-create the thread by client_id. The DB generates the conversation
+    // id (works whether the id column is uuid or text — never construct it).
     const { data: existing } = await admin
       .from("conversations")
       .select("id, unread")
-      .eq("id", convId)
+      .eq("client_id", client.id)
+      .limit(1)
       .maybeSingle();
-    if (!existing) {
-      await admin.from("conversations").insert({
-        id: convId,
-        creator_id: client.creator_id,
-        client_id: client.id,
-        client_name: client.name,
-        client_avatar: client.avatar_seed ?? "",
-        unread: 1,
-      });
-    } else {
+
+    let convId: string;
+    if (existing) {
+      convId = existing.id as string;
       await admin
         .from("conversations")
         .update({ unread: ((existing.unread as number) ?? 0) + 1 })
         .eq("id", convId);
+    } else {
+      const { data: created, error: convErr } = await admin
+        .from("conversations")
+        .insert({
+          creator_id: client.creator_id,
+          client_id: client.id,
+          client_name: client.name,
+          client_avatar: client.avatar_seed ?? "",
+          unread: 1,
+        })
+        .select("id")
+        .single();
+      if (convErr || !created) {
+        return NextResponse.json(
+          { error: convErr?.message ?? "Couldn't open the thread." },
+          { status: 500 }
+        );
+      }
+      convId = created.id as string;
     }
 
     const { error } = await admin.from("messages").insert({

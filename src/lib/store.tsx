@@ -743,17 +743,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     async (text: string) => {
       const body = text.trim();
       if (!body || !clientUser) return;
-      const convId = "conv_" + clientUser.id;
       const msg: Message = { id: uid("m"), from: "client", text: body, time: "now" };
       setConversations((prev) => {
-        const existing = prev.find((c) => c.id === convId || c.clientId === clientUser.id);
+        const existing = prev.find((c) => c.clientId === clientUser.id);
         if (existing)
           return prev.map((c) =>
             c.id === existing.id ? { ...c, messages: [...c.messages, msg] } : c
           );
         return [
           {
-            id: convId,
+            id: uid("conv"),
             clientId: clientUser.id,
             clientName: clientUser.name,
             clientAvatar: clientUser.avatarSeed,
@@ -984,7 +983,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const existing = conversations.find((c) => c.clientId === client.id);
       if (existing) return existing.id;
       const conv: Conversation = {
-        id: "conv_" + client.id,
+        id: uid("conv"), // real UUID — valid for uuid or text id columns
         clientId: client.id,
         clientName: client.name,
         clientAvatar: client.avatarSeed,
