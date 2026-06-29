@@ -6,12 +6,14 @@ import { useParams } from "next/navigation";
 import {
   ArrowLeft,
   BadgeCheck,
+  Globe,
   Instagram,
   Loader2,
   Minus,
   Plus,
   ShoppingBag,
   Trash2,
+  Twitter,
   Youtube,
   X,
 } from "lucide-react";
@@ -180,7 +182,14 @@ export default function StorefrontPage() {
       </header>
 
       {/* Hero */}
-      <div className="h-40 sm:h-52" style={{ background: `linear-gradient(135deg, ${accent}, ${accent}88)` }} />
+      <div
+        className="h-40 sm:h-52"
+        style={
+          profile.socials?.bannerUrl
+            ? { backgroundImage: `url(${profile.socials.bannerUrl})`, backgroundSize: "cover", backgroundPosition: "center" }
+            : { background: `linear-gradient(135deg, ${accent}, ${accent}88)` }
+        }
+      />
       <div className="mx-auto max-w-5xl px-4">
         <div className="-mt-14 flex flex-col items-center text-center">
           <Avatar name={profile.name} seed={profile.avatarSeed} src={profile.avatarUrl} size={104} className="border-4 border-background" />
@@ -191,13 +200,33 @@ export default function StorefrontPage() {
           <Badge variant="primary" className="mt-2">{profile.niche}</Badge>
           <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">{profile.bio}</p>
 
-          <div className="mt-4 flex gap-2">
-            {[Instagram, Youtube, TikTokIcon].map((Icon, i) => (
-              <a key={i} href="#" aria-label="Social" className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground">
-                <Icon className="h-4 w-4" />
-              </a>
-            ))}
-          </div>
+          {(() => {
+            const links = [
+              { url: profile.socials?.instagram, Icon: Instagram, label: "Instagram" },
+              { url: profile.socials?.youtube, Icon: Youtube, label: "YouTube" },
+              { url: profile.socials?.tiktok, Icon: TikTokIcon, label: "TikTok" },
+              { url: profile.socials?.twitter, Icon: Twitter, label: "X" },
+              { url: profile.socials?.website, Icon: Globe, label: "Website" },
+            ].filter((l) => !!l.url);
+            if (links.length === 0) return null;
+            const href = (u: string) => (/^https?:\/\//.test(u) ? u : `https://${u}`);
+            return (
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                {links.map(({ url, Icon, label }) => (
+                  <a
+                    key={label}
+                    href={href(url as string)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={label}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground"
+                  >
+                    <Icon className="h-4 w-4" />
+                  </a>
+                ))}
+              </div>
+            );
+          })()}
 
           <div className="mt-5 flex items-center gap-4 rounded-2xl border border-border bg-card px-4 py-3 sm:gap-6 sm:px-6">
             <Stat label="Clients Coached" value={compactNumber(profile.followers)} />

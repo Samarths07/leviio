@@ -27,6 +27,8 @@ export interface Creator {
     tiktok?: string;
     twitter?: string;
     website?: string;
+    /** Storefront hero banner image URL (stored here to avoid a schema change). */
+    bannerUrl?: string;
   };
   /** Coaching offerings + freeform session notes (creator-managed, stored on profile). */
   coachingPackages?: CoachingPackage[];

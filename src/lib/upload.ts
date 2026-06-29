@@ -54,6 +54,10 @@ export function uploadProductImage(userId: string, file: File) {
   return uploadImage(userId, "products/product", file);
 }
 
+export function uploadBanner(userId: string, file: File) {
+  return uploadImage(userId, "banner", file);
+}
+
 /**
  * Upload a digital product's deliverable file to the PRIVATE `product-files`
  * bucket. Returns the storage path (never public) — buyers download via a
