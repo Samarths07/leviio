@@ -19,17 +19,10 @@ import type {
   WorkoutWeek,
 } from "./types";
 
-// Public demo login (non-secret). Sourced from env so the value isn't hardcoded;
-// NEXT_PUBLIC_* is bundle-exposed by nature — never put real secrets here.
-export const DEMO_CREDENTIALS = {
-  email: process.env.NEXT_PUBLIC_DEMO_EMAIL ?? "demo@leviio.com",
-  password: process.env.NEXT_PUBLIC_DEMO_PASSWORD ?? "password123",
-};
-
 export const creator: Creator = {
   id: "creator_alisha",
   name: "Alisha Fernandez",
-  email: DEMO_CREDENTIALS.email,
+  email: "",
   username: "alishafits",
   niche: "Weight Loss & Toning",
   bio: "Helping busy women lose fat, build confidence, and feel strong. NASM-certified coach. 4,200+ transformations and counting. 🌱",

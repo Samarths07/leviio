@@ -6,7 +6,6 @@ import {
   Apple,
   Copy,
   Edit2,
-  LayoutGrid,
   Plus,
   Sparkles,
   Trash2,
@@ -14,12 +13,11 @@ import {
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useToast } from "@/components/ui/toast";
-import type { MealPlan, MealTemplate } from "@/lib/types";
-import { mealTemplates } from "@/lib/mock-data";
-import { emptyDay, newPlan } from "@/lib/diet";
+import type { MealPlan } from "@/lib/types";
+import { newPlan } from "@/lib/diet";
 import { formatDate, uid } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -30,22 +28,7 @@ import { AiDietDialog } from "@/components/dashboard/ai-diet-dialog";
 const tabs = [
   { value: "plans", label: "My Plans" },
   { value: "create", label: "Create New" },
-  { value: "templates", label: "Template Library" },
 ];
-
-function templateToPlan(t: MealTemplate): MealPlan {
-  return {
-    id: uid("plan"),
-    name: `${t.name} (copy)`,
-    calorieTarget: t.calorieTarget,
-    protein: t.protein,
-    carbs: t.carbs,
-    fat: t.fat,
-    dietType: t.dietType,
-    days: Array.from({ length: t.days }).map((_, i) => emptyDay(`Day ${i + 1}`)),
-    updatedAt: new Date().toISOString(),
-  };
-}
 
 function DietInner() {
   const params = useSearchParams();
@@ -67,11 +50,6 @@ function DietInner() {
   const edit = (p: MealPlan) => {
     setBuilderInit(p);
     setTab("create");
-  };
-  const useTemplate = (t: MealTemplate) => {
-    setBuilderInit(templateToPlan(t));
-    setTab("create");
-    toast(`Loaded "${t.name}" template`, { variant: "success" });
   };
   const duplicate = (p: MealPlan) => {
     saveMealPlan({ ...p, id: uid("plan"), name: `${p.name} (copy)`, updatedAt: new Date().toISOString() });
@@ -163,33 +141,6 @@ function DietInner() {
           initial={builderInit ?? newPlan(7)}
           onSaved={() => setTab("plans")}
         />
-      )}
-
-      {tab === "templates" && (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {mealTemplates.map((t) => (
-            <Card key={t.id} hover className="p-5">
-              <div className="flex items-start justify-between">
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/15 text-primary">
-                  <LayoutGrid className="h-5 w-5" />
-                </span>
-                <Badge variant="secondary">{t.goal}</Badge>
-              </div>
-              <h3 className="mt-3 font-bold text-foreground">{t.name}</h3>
-              <p className="text-xs text-muted-foreground">{t.days}-day plan</p>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                <Badge variant="primary">{t.calorieTarget} kcal</Badge>
-                <Badge variant="outline">{t.protein}/{t.carbs}/{t.fat}</Badge>
-                {t.dietType.map((d) => (
-                  <Badge key={d} variant="secondary">{d}</Badge>
-                ))}
-              </div>
-              <Button className="mt-4 w-full" variant="outline" onClick={() => useTemplate(t)}>
-                Use Template
-              </Button>
-            </Card>
-          ))}
-        </div>
       )}
 
       <AssignClientDialog

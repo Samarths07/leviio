@@ -29,7 +29,7 @@ type FormValues = z.infer<typeof schema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useApp();
+  const { login, clientForgotPassword } = useApp();
   const { toast } = useToast();
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -38,8 +38,24 @@ export default function LoginPage() {
   const {
     register,
     handleSubmit,
+    getValues,
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
+
+  const forgotPassword = async () => {
+    const id = getValues("identifier")?.trim() ?? "";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(id)) {
+      toast("Enter your account email above first, then tap Forgot password.", { variant: "info" });
+      return;
+    }
+    const res = await clientForgotPassword(id);
+    toast(
+      res.ok
+        ? "If that account exists, a reset link is on its way."
+        : res.error ?? "Couldn't send reset link.",
+      { variant: res.ok ? "success" : "error" }
+    );
+  };
 
   const onSubmit = async (data: FormValues) => {
     // Rate limit: max 5 attempts / 15 minutes (client-side guard; Supabase also
@@ -130,7 +146,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   className="text-xs font-semibold text-primary hover:underline"
-                  onClick={() => toast("Password reset link sent (demo).", { variant: "info" })}
+                  onClick={forgotPassword}
                 >
                   Forgot password?
                 </button>

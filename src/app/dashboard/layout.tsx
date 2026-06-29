@@ -6,7 +6,6 @@ import { Loader2 } from "lucide-react";
 import { Sidebar, MobileSidebar } from "@/components/layout/sidebar";
 import { TopNav } from "@/components/layout/topnav";
 import { MobileNav } from "@/components/layout/mobile-nav";
-import { DemoBanner } from "@/components/layout/demo-banner";
 import { useApp } from "@/lib/store";
 import { pageTitle } from "@/lib/nav";
 
@@ -43,7 +42,6 @@ export default function DashboardLayout({
 
       <div className="lg:pl-60">
         <TopNav title={pageTitle(pathname)} onMenuClick={() => setDrawerOpen(true)} />
-        {user.isDemo && <DemoBanner />}
         <main className="px-4 pb-24 pt-5 sm:px-6 lg:pb-10">{children}</main>
       </div>
 

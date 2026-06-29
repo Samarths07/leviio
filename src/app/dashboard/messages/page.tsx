@@ -7,14 +7,11 @@ import {
   Apple,
   CalendarPlus,
   Dumbbell,
-  Paperclip,
   Search,
   Send,
-  Smile,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { LIMITS } from "@/lib/security";
-import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -23,7 +20,6 @@ import { Badge } from "@/components/ui/badge";
 
 export default function MessagesPage() {
   const { conversations, clients, sendMessage, markRead, events } = useApp();
-  const { toast } = useToast();
   const [activeId, setActiveId] = useState(conversations[0]?.id ?? "");
   const [query, setQuery] = useState("");
   const [draft, setDraft] = useState("");
@@ -143,12 +139,6 @@ export default function MessagesPage() {
               </div>
 
               <div className="flex items-center gap-2 border-t border-border p-3">
-                <button aria-label="Emoji" onClick={() => toast("Emoji picker (demo).", { variant: "info" })} className="text-muted-foreground hover:text-foreground">
-                  <Smile className="h-5 w-5" />
-                </button>
-                <button aria-label="Attach" onClick={() => toast("Attachments (demo).", { variant: "info" })} className="text-muted-foreground hover:text-foreground">
-                  <Paperclip className="h-5 w-5" />
-                </button>
                 <input
                   value={draft}
                   maxLength={LIMITS.textarea}
@@ -202,12 +192,12 @@ export default function MessagesPage() {
 
               <div className="mt-4 space-y-2">
                 <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Quick actions</p>
-                <Button variant="subtle" size="sm" className="w-full justify-start" onClick={() => toast("Diet plan sent", { variant: "success" })}>
-                  <Apple className="h-4 w-4" /> Send Diet Plan
-                </Button>
-                <Button variant="subtle" size="sm" className="w-full justify-start" onClick={() => toast("Workout sent", { variant: "success" })}>
-                  <Dumbbell className="h-4 w-4" /> Send Workout
-                </Button>
+                <Link href="/dashboard/diet-planner" className={cn(buttonVariants({ variant: "subtle", size: "sm" }), "w-full justify-start")}>
+                  <Apple className="h-4 w-4" /> Assign Diet Plan
+                </Link>
+                <Link href="/dashboard/workout-builder" className={cn(buttonVariants({ variant: "subtle", size: "sm" }), "w-full justify-start")}>
+                  <Dumbbell className="h-4 w-4" /> Assign Workout
+                </Link>
                 <Link href="/dashboard/calendar" className={cn(buttonVariants({ variant: "subtle", size: "sm" }), "w-full justify-start")}>
                   <CalendarPlus className="h-4 w-4" /> Book Session
                 </Link>

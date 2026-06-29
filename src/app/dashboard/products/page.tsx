@@ -39,7 +39,7 @@ const typeVariant: Record<string, "primary" | "warning" | "success"> = {
 
 function ProductsInner() {
   const params = useSearchParams();
-  const { products, updateProduct, deleteProduct } = useApp();
+  const { products, updateProduct, deleteProduct, user } = useApp();
   const { toast } = useToast();
 
   const [formOpen, setFormOpen] = useState(params.get("new") === "1");
@@ -172,14 +172,17 @@ function ProductsInner() {
                         >
                           <Edit2 className="h-4 w-4" />
                         </button>
-                        <a
-                          href="#"
-                          onClick={(e) => { e.preventDefault(); toast("Opening product preview (demo).", { variant: "info" }); }}
-                          aria-label="View"
-                          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                        </a>
+                        {user?.username && (
+                          <a
+                            href={`/${user.username}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="View in store"
+                            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        )}
                         <button
                           onClick={() => setDeleting(p)}
                           aria-label="Delete"

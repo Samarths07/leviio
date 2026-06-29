@@ -16,7 +16,6 @@ import {
   Ruler,
   Target,
   TrendingDown,
-  Upload,
   UserPlus,
   Users,
 } from "lucide-react";
@@ -223,24 +222,6 @@ function OverviewTab({
               <Badge variant="success">Active</Badge>
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader><CardTitle>Progress Photos</CardTitle></CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-3">
-            {["Week 1", "Week 6", "Week 12"].map((w) => (
-              <button
-                key={w}
-                onClick={() => toast("Photo upload is a demo placeholder.", { variant: "info" })}
-                className="flex aspect-[3/4] flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border bg-background/40 text-muted-foreground hover:border-primary/40"
-              >
-                <Upload className="h-5 w-5" />
-                <span className="text-[10px] font-semibold">{w}</span>
-              </button>
-            ))}
-          </div>
         </CardContent>
       </Card>
 

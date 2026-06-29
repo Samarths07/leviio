@@ -1,13 +1,12 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Bell,
   Check,
   CreditCard,
   Lock,
-  Monitor,
   Shield,
   Sparkles,
   Store as StoreIcon,
@@ -23,6 +22,7 @@ import { AvatarUpload } from "@/components/shared/avatar-upload";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog } from "@/components/ui/dialog";
 import { Input, Label } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
@@ -157,7 +157,6 @@ function ProfileTab({ user, onSave, toast }: any) {
 }
 
 function StoreTab({ user, onSave, toast }: any) {
-  const locked = user.plan === "Free";
   return (
     <Card>
       <CardHeader><CardTitle>Store</CardTitle></CardHeader>
@@ -190,25 +189,6 @@ function StoreTab({ user, onSave, toast }: any) {
                 {user.bannerColor === s.value && <Check className="mx-auto h-4 w-4 text-white" />}
               </button>
             ))}
-          </div>
-        </div>
-        <div className="flex items-center justify-between rounded-lg border border-border bg-background/40 px-4 py-3">
-          <div>
-            <p className="text-sm font-semibold text-foreground">Store visibility</p>
-            <p className="text-xs text-muted-foreground">Make your store public or private</p>
-          </div>
-          <Switch checked onCheckedChange={() => toast("Visibility toggled (demo).", { variant: "info" })} aria-label="Store visibility" />
-        </div>
-        <div>
-          <Label>Custom domain</Label>
-          <div className={cn("relative", locked && "opacity-60")}>
-            <Input placeholder="store.yourdomain.com" disabled={locked} />
-            {locked && (
-              <div className="mt-2 flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 p-3 text-xs">
-                <Sparkles className="h-4 w-4 text-primary" />
-                <span className="text-foreground">Custom domains are available on the Pro plan.</span>
-              </div>
-            )}
           </div>
         </div>
       </CardContent>
@@ -366,53 +346,75 @@ function NotificationsTab({ toast }: any) {
 }
 
 function SecurityTab({ toast }: any) {
-  const [twoFa, setTwoFa] = useState(false);
+  const { updateAuthPassword, logout } = useApp();
+  const router = useRouter();
+  const [pw, setPw] = useState({ next: "", confirm: "" });
+  const [savingPw, setSavingPw] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const changePassword = async () => {
+    if (pw.next.length < 6) return toast("Password must be at least 6 characters", { variant: "error" });
+    if (pw.next !== pw.confirm) return toast("Passwords don't match", { variant: "error" });
+    setSavingPw(true);
+    const res = await updateAuthPassword(pw.next);
+    setSavingPw(false);
+    if (res.ok) {
+      toast("Password updated", { variant: "success" });
+      setPw({ next: "", confirm: "" });
+    } else {
+      toast(res.error ?? "Couldn't update password", { variant: "error" });
+    }
+  };
+
+  const deleteAccount = async () => {
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/account/delete", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setDeleting(false);
+        toast(data?.error ?? "Couldn't delete account", { variant: "error" });
+        return;
+      }
+      logout();
+      router.replace("/");
+    } catch {
+      setDeleting(false);
+      toast("Couldn't delete account", { variant: "error" });
+    }
+  };
+
   return (
     <div className="space-y-5">
       <Card>
         <CardHeader><CardTitle>Change Password</CardTitle></CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div><Label>Current</Label><Input type="password" placeholder="••••••" /></div>
-            <div><Label>New</Label><Input type="password" placeholder="••••••" /></div>
-            <div><Label>Confirm</Label><Input type="password" placeholder="••••••" /></div>
-          </div>
-          <Button onClick={() => toast("Password updated", { variant: "success" })}>
-            <Lock className="h-4 w-4" /> Update Password
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="flex items-center justify-between p-5">
-          <div>
-            <p className="text-sm font-bold text-foreground">Two-factor authentication</p>
-            <p className="text-xs text-muted-foreground">Add an extra layer of security to your account.</p>
-          </div>
-          <Switch checked={twoFa} onCheckedChange={(v) => { setTwoFa(v); toast(`2FA ${v ? "enabled" : "disabled"}`, { variant: "info" }); }} aria-label="Two-factor" />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader><CardTitle>Active Sessions</CardTitle></CardHeader>
-        <CardContent className="space-y-2">
-          {[
-            { device: "MacBook Pro · Chrome", loc: "Los Angeles, CA", current: true },
-            { device: "iPhone 15 · Safari", loc: "Los Angeles, CA", current: false },
-          ].map((s) => (
-            <div key={s.device} className="flex items-center gap-3 rounded-lg border border-border bg-background/40 p-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.06] text-muted-foreground">
-                <Monitor className="h-4 w-4" />
-              </span>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-foreground">{s.device}</p>
-                <p className="text-xs text-muted-foreground">{s.loc}</p>
-              </div>
-              {s.current ? <Badge variant="success">This device</Badge> : (
-                <Button size="sm" variant="ghost" onClick={() => toast("Session revoked", { variant: "info" })}>Revoke</Button>
-              )}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label>New password</Label>
+              <Input
+                type="password"
+                autoComplete="new-password"
+                placeholder="••••••"
+                value={pw.next}
+                onChange={(e) => setPw({ ...pw, next: e.target.value })}
+              />
             </div>
-          ))}
+            <div>
+              <Label>Confirm new password</Label>
+              <Input
+                type="password"
+                autoComplete="new-password"
+                placeholder="••••••"
+                value={pw.confirm}
+                onChange={(e) => setPw({ ...pw, confirm: e.target.value })}
+              />
+            </div>
+          </div>
+          <Button onClick={changePassword} disabled={savingPw}>
+            <Lock className="h-4 w-4" /> {savingPw ? "Updating…" : "Update Password"}
+          </Button>
         </CardContent>
       </Card>
 
@@ -423,11 +425,31 @@ function SecurityTab({ toast }: any) {
             <p className="text-sm font-semibold text-foreground">Delete account</p>
             <p className="text-xs text-muted-foreground">Permanently delete your account and all data.</p>
           </div>
-          <Button variant="danger" onClick={() => toast("Account deletion requires confirmation (demo).", { variant: "error" })}>
+          <Button variant="danger" onClick={() => setConfirmDelete(true)}>
             <Trash2 className="h-4 w-4" /> Delete Account
           </Button>
         </CardContent>
       </Card>
+
+      <Dialog
+        open={confirmDelete}
+        onClose={() => !deleting && setConfirmDelete(false)}
+        title="Delete your account?"
+        size="sm"
+      >
+        <p className="text-sm text-muted-foreground">
+          This permanently deletes your account, store, clients, products, plans and all other
+          data. This <span className="font-semibold text-foreground">cannot be undone</span>.
+        </p>
+        <div className="mt-5 flex gap-3">
+          <Button variant="outline" className="flex-1" onClick={() => setConfirmDelete(false)} disabled={deleting}>
+            Cancel
+          </Button>
+          <Button variant="danger" className="flex-1" onClick={deleteAccount} disabled={deleting}>
+            <Trash2 className="h-4 w-4" /> {deleting ? "Deleting…" : "Delete forever"}
+          </Button>
+        </div>
+      </Dialog>
     </div>
   );
 }

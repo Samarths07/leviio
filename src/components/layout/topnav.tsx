@@ -1,8 +1,9 @@
 "use client";
 
+import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Bell, LogOut, Menu, Search, Settings, User } from "lucide-react";
+import { Bell, LogOut, Menu, Settings, User } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { Avatar } from "@/components/ui/avatar";
 import { Dropdown, DropdownItem } from "@/components/ui/dropdown";
@@ -17,8 +18,30 @@ export function TopNav({
   onMenuClick: () => void;
 }) {
   const router = useRouter();
-  const { user, logout } = useApp();
+  const { user, logout, conversations, orders, events } = useApp();
   const { toast } = useToast();
+
+  // Real notifications derived from live data: unread messages, recent
+  // purchases (last 7 days) and sessions coming up in the next 48 hours.
+  const notifications = useMemo(() => {
+    const items: { href: string; text: string }[] = [];
+    conversations.forEach((c) => {
+      if (c.unread > 0) items.push({ href: "/dashboard/messages", text: `New message from ${c.clientName}` });
+    });
+    const weekAgo = Date.now() - 7 * 86400000;
+    orders.forEach((o) => {
+      if (new Date(o.date).getTime() >= weekAgo)
+        items.push({ href: "/dashboard/orders", text: `New purchase: ${o.product}` });
+    });
+    const now = Date.now();
+    const in48h = now + 48 * 3600000;
+    events.forEach((e) => {
+      const t = new Date(`${e.date}T${e.time || "00:00"}`).getTime();
+      if (t >= now && t <= in48h)
+        items.push({ href: "/dashboard/calendar", text: `Upcoming: ${e.title}` });
+    });
+    return items.slice(0, 8);
+  }, [conversations, orders, events]);
 
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border bg-background/85 px-4 backdrop-blur-xl sm:px-6">
@@ -34,50 +57,43 @@ export function TopNav({
         {title}
       </h1>
 
-      {/* Search */}
-      <div className="relative ml-auto hidden max-w-xs flex-1 sm:block">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <input
-          placeholder="Search clients, products..."
-          onKeyDown={(e) => {
-            if (e.key === "Enter")
-              toast("Search is a demo placeholder.", { variant: "info" });
-          }}
-          className="h-10 w-full rounded-lg border border-input bg-card pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-primary/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40"
-        />
-      </div>
-
-      <div className="ml-auto flex items-center gap-1 sm:ml-0">
+      <div className="ml-auto flex items-center gap-1">
         {/* Notifications */}
         <Dropdown
           align="right"
           trigger={
             <span className="relative flex h-10 w-10 items-center justify-center rounded-lg text-foreground hover:bg-white/[0.06]">
               <Bell className="h-5 w-5" />
-              <span className="absolute right-2 top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-white">
-                3
-              </span>
+              {notifications.length > 0 && (
+                <span className="absolute right-2 top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-white">
+                  {notifications.length}
+                </span>
+              )}
             </span>
           }
         >
-          {() => (
+          {(close) => (
             <div className="w-72">
               <p className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Notifications
               </p>
-              {[
-                "New purchase: 12-Week Shred Program",
-                "Jessica Moore sent you a message",
-                "Upcoming session in 1 hour",
-              ].map((n, i) => (
-                <div
-                  key={i}
-                  className="flex items-start gap-2.5 rounded-lg px-3 py-2.5 hover:bg-white/[0.04]"
-                >
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                  <p className="text-sm text-foreground">{n}</p>
-                </div>
-              ))}
+              {notifications.length === 0 ? (
+                <p className="px-3 py-6 text-center text-sm text-muted-foreground">
+                  You&apos;re all caught up.
+                </p>
+              ) : (
+                notifications.map((n, i) => (
+                  <Link
+                    key={i}
+                    href={n.href}
+                    onClick={close}
+                    className="flex items-start gap-2.5 rounded-lg px-3 py-2.5 hover:bg-white/[0.04]"
+                  >
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                    <p className="text-sm text-foreground">{n.text}</p>
+                  </Link>
+                ))
+              )}
             </div>
           )}
         </Dropdown>

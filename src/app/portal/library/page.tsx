@@ -214,20 +214,9 @@ function LibraryCard({
           ))}
 
         {type === "Physical" && (
-          <div className="flex flex-col items-end gap-2 sm:items-stretch">
-            <Badge variant={fulfillmentVariant(order.fulfillment ?? "Processing")}>
-              {order.fulfillment ?? "Processing"}
-            </Badge>
-            {order.tracking && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => toast("Opening carrier tracking (demo)", { variant: "info" })}
-              >
-                <Truck className="h-4 w-4" /> Track
-              </Button>
-            )}
-          </div>
+          <Badge variant={fulfillmentVariant(order.fulfillment ?? "Processing")}>
+            {order.fulfillment ?? "Processing"}
+          </Badge>
         )}
 
         {type === "Membership" && (

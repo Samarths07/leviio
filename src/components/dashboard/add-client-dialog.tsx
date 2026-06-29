@@ -11,7 +11,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { useApp } from "@/lib/store";
 import { useToast } from "@/components/ui/toast";
-import { coachingPackages } from "@/lib/mock-data";
 
 const goals: ClientGoal[] = ["Weight Loss", "Muscle Gain", "Maintain", "Athletic Performance"];
 
@@ -42,7 +41,8 @@ export function AddClientDialog({
   open: boolean;
   onClose: () => void;
 }) {
-  const { addClient } = useApp();
+  const { addClient, user } = useApp();
+  const packages = user?.coachingPackages ?? [];
   const { toast } = useToast();
   const [form, setForm] = useState({ ...empty });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -206,7 +206,7 @@ export function AddClientDialog({
             <Label>Assign package</Label>
             <Select value={form.pkg} onChange={(e) => set({ pkg: e.target.value })}>
               <option value="">None</option>
-              {coachingPackages.map((p) => (
+              {packages.map((p) => (
                 <option key={p.id} value={p.name}>
                   {p.name}
                 </option>

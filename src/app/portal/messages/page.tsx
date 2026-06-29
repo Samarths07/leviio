@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Paperclip, Send, Smile } from "lucide-react";
+import { Send } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { creator as seedCreator } from "@/lib/mock-data";
 import { clientConversation } from "@/lib/portal";
 import { LIMITS } from "@/lib/security";
-import { useToast } from "@/components/ui/toast";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -21,7 +20,6 @@ export default function PortalMessages() {
     createConversation,
     coach: portalCoach,
   } = useApp();
-  const { toast } = useToast();
   const coach = portalCoach ?? user ?? seedCreator;
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -110,20 +108,6 @@ export default function PortalMessages() {
 
         {/* Composer */}
         <div className="flex items-center gap-2 border-t border-border p-3">
-          <button
-            aria-label="Emoji"
-            onClick={() => toast("Emoji picker (demo).", { variant: "info" })}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <Smile className="h-5 w-5" />
-          </button>
-          <button
-            aria-label="Attach"
-            onClick={() => toast("Attachments (demo).", { variant: "info" })}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <Paperclip className="h-5 w-5" />
-          </button>
           <input
             value={draft}
             maxLength={LIMITS.textarea}
