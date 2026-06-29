@@ -24,6 +24,9 @@ body {
   color: #fafafa;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  /* Long unbreakable strings (emails, URLs, usernames) wrap instead of forcing
+     a horizontal scrollbar on narrow screens. */
+  overflow-wrap: break-word;
 }
 
 /* Momentum scrolling inside scroll containers on touch devices. */

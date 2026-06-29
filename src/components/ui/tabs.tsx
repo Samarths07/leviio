@@ -64,7 +64,7 @@ export function Tabs({
   return (
     <div
       className={cn(
-        "no-scrollbar inline-flex gap-1 overflow-x-auto rounded-lg border border-border bg-card p-1",
+        "no-scrollbar flex max-w-full gap-1 overflow-x-auto rounded-lg border border-border bg-card p-1 sm:inline-flex",
         className
       )}
       role="tablist"
