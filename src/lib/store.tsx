@@ -584,11 +584,50 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const username =
         data.username ||
         data.name.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 16);
+      const email = data.email.trim();
+      const password = data.password ?? "";
 
       try {
+        // Preferred path: create the account server-side with the email
+        // pre-confirmed, then sign in — no "confirm your email" step.
+        let provisioned = false;
+        try {
+          const r = await fetch("/api/auth/signup", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: data.name, email, password, username, niche: data.niche }),
+          });
+          if (r.ok) {
+            provisioned = true;
+          } else if (r.status !== 503) {
+            const d = await r.json().catch(() => ({}));
+            toast(d?.error ?? "Couldn't create the account.", { variant: "error" });
+            return false;
+          }
+          // 503 → service role not configured; fall through to client signUp.
+        } catch {
+          /* network issue — fall through to client signUp */
+        }
+
+        if (provisioned) {
+          const { error: signInErr } = await sb.auth.signInWithPassword({ email, password });
+          if (signInErr) {
+            toast("Account created — please log in.", { variant: "success" });
+            return false;
+          }
+          const profile = await db.getProfile(sb, (await sb.auth.getUser()).data.user!.id);
+          if (profile) {
+            setClientUser(null);
+            setUser(normalizeUser(profile));
+            await loadCreatorData(profile.id);
+          }
+          return true;
+        }
+
+        // Fallback: standard client signUp (email confirmation may apply).
         const { data: res, error } = await sb.auth.signUp({
-          email: data.email.trim(),
-          password: data.password ?? "",
+          email,
+          password,
           options: { data: { name: data.name, username } },
         });
         if (error) {
@@ -629,7 +668,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return false;
       }
     },
-    [sb, toast, reportError]
+    [sb, toast, reportError, loadCreatorData]
   );
 
   const logout = useCallback(() => {
