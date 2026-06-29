@@ -629,14 +629,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
       password: string
     ): Promise<{ ok: boolean; error?: string; hasClient?: boolean }> => {
       if (!sb) return { ok: false, error: "Supabase not configured" };
-      const { data, error } = await sb.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
+      const addr = email.trim();
+      let { data, error } = await sb.auth.signInWithPassword({ email: addr, password });
+
+      // Lazy first-login: a coach-added client may not have an auth account yet
+      // (e.g. provisioning at add-time was skipped/failed). If this email is a
+      // managed client and has no account, create it with this password, then
+      // retry — so the client's first sign-in sets their password.
+      if (error || !data.session) {
+        try {
+          const r = await fetch("/api/portal/claim", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: addr, password }),
+          });
+          const d = await r.json().catch(() => ({}));
+          if (d?.created) {
+            ({ data, error } = await sb.auth.signInWithPassword({ email: addr, password }));
+          } else if (d?.error && !d?.existed) {
+            return { ok: false, error: d.error };
+          }
+        } catch {
+          /* fall through to the original error */
+        }
+      }
+
       if (error || !data.session) {
         return { ok: false, error: error?.message ?? "Invalid email or password." };
       }
-      const resolved = await loadClientData(email.trim());
+      const resolved = await loadClientData(addr);
       return { ok: true, hasClient: !!resolved };
     },
     [sb, loadClientData]
