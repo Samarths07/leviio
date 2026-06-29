@@ -4,7 +4,7 @@ import { blogPosts } from "@/lib/blog";
 const BASE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://leviio.com";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const staticRoutes = ["", "/features", "/pricing", "/about", "/blog", "/privacy", "/terms"].map(
+  const staticRoutes = ["", "/features", "/pricing", "/about", "/blog", "/privacy", "/terms", "/cookies"].map(
     (path) => ({
       url: `${BASE}${path}`,
       lastModified: new Date(),
