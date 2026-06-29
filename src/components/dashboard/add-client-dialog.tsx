@@ -54,11 +54,45 @@ export function AddClientDialog({
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errs: Record<string, string> = {};
-    if (form.name.trim().length < 2) errs.name = "Enter a name";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = "Valid email required";
+
+    // Name — required, real text (not just digits/symbols).
+    const name = form.name.trim();
+    if (name.length < 2) errs.name = "Enter the client's name";
+    else if (!/[a-zA-Z]/.test(name)) errs.name = "Name must contain letters";
+
+    // Email — required, valid format.
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()))
+      errs.email = "Enter a valid email address";
+
+    // Phone — optional; if set, must look like a real phone number (7–15 digits).
+    if (form.phone.trim()) {
+      const digits = form.phone.replace(/\D/g, "");
+      if (!/^[+\d][\d\s()-]{6,19}$/.test(form.phone.trim()) || digits.length < 7 || digits.length > 15)
+        errs.phone = "Enter a valid phone number";
+    }
+
+    // Age — optional; if set, must be a sane whole number.
+    if (form.age.trim()) {
+      const age = Number(form.age);
+      if (!Number.isInteger(age) || age < 5 || age > 120) errs.age = "Age must be 5–120";
+    }
+
+    // Height (cm) — optional; if set, must be realistic.
+    if (form.height.trim()) {
+      const h = Number(form.height);
+      if (!Number.isFinite(h) || h < 50 || h > 260) errs.height = "Height must be 50–260 cm";
+    }
+
+    // Weight (kg) — optional; if set, must be realistic.
+    if (form.weight.trim()) {
+      const w = Number(form.weight);
+      if (!Number.isFinite(w) || w < 20 || w > 400) errs.weight = "Weight must be 20–400 kg";
+    }
+
     // Password is optional — only validate length when the coach actually sets one.
     if (form.password.trim() && form.password.trim().length < 6)
       errs.password = "At least 6 characters";
+
     setErrors(errs);
     if (Object.keys(errs).length) return;
 
@@ -145,19 +179,23 @@ export function AddClientDialog({
           </div>
           <div>
             <Label>Phone</Label>
-            <Input value={form.phone} onChange={(e) => set({ phone: e.target.value })} placeholder="+1 555 000 0000" />
+            <Input value={form.phone} onChange={(e) => set({ phone: e.target.value })} placeholder="+1 555 000 0000" inputMode="tel" />
+            {errors.phone && <p className="mt-1 text-xs text-danger">{errors.phone}</p>}
           </div>
           <div>
             <Label>Age</Label>
-            <Input type="number" value={form.age} onChange={(e) => set({ age: e.target.value })} placeholder="30" />
+            <Input type="number" min={5} max={120} value={form.age} onChange={(e) => set({ age: e.target.value })} placeholder="30" />
+            {errors.age && <p className="mt-1 text-xs text-danger">{errors.age}</p>}
           </div>
           <div>
             <Label>Height (cm)</Label>
-            <Input type="number" value={form.height} onChange={(e) => set({ height: e.target.value })} placeholder="170" />
+            <Input type="number" min={50} max={260} value={form.height} onChange={(e) => set({ height: e.target.value })} placeholder="170" />
+            {errors.height && <p className="mt-1 text-xs text-danger">{errors.height}</p>}
           </div>
           <div>
             <Label>Weight (kg)</Label>
-            <Input type="number" value={form.weight} onChange={(e) => set({ weight: e.target.value })} placeholder="70" />
+            <Input type="number" min={20} max={400} value={form.weight} onChange={(e) => set({ weight: e.target.value })} placeholder="70" />
+            {errors.weight && <p className="mt-1 text-xs text-danger">{errors.weight}</p>}
           </div>
           <div>
             <Label>Goal</Label>

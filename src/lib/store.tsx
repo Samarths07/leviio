@@ -119,6 +119,7 @@ interface AppContextValue {
   clients: Client[];
   addClient: (c: Client) => void;
   updateClient: (id: string, patch: Partial<Client>) => void;
+  deleteClient: (id: string) => void;
   /** Grant a managed client portal access (one-time approval). */
   approveClient: (id: string) => void;
   // meal plans
@@ -747,6 +748,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     (id: string) => updateClient(id, { portalStatus: "approved" }),
     [updateClient]
   );
+  const deleteClient = useCallback(
+    (id: string) => {
+      setClients((prev) => prev.filter((c) => c.id !== id));
+      if (sb && user)
+        db.deleteClient(sb, id).catch((e) => reportError(e, "client"));
+    },
+    [sb, user, reportError]
+  );
 
   // ---- meal plans ---------------------------------------------------------
   const saveMealPlan = useCallback(
@@ -943,6 +952,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       clients,
       addClient,
       updateClient,
+      deleteClient,
       approveClient,
       mealPlans,
       saveMealPlan,
@@ -971,7 +981,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       hydrated, user, login, signup, logout, updateUser,
       coach, clientUser, clientLogin, clientSignup, clientForgotPassword, updateAuthPassword, clientLogout, refreshClient,
       products, addProduct, updateProduct, deleteProduct,
-      clients, addClient, updateClient, approveClient,
+      clients, addClient, updateClient, deleteClient, approveClient,
       mealPlans, saveMealPlan, deleteMealPlan,
       programs, saveProgram, deleteProgram,
       events, addEvent, updateEvent, deleteEvent,

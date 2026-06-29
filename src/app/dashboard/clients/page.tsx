@@ -3,15 +3,17 @@
 import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Check, Plus, Search, Users } from "lucide-react";
+import { Check, Plus, Search, Trash2, Users } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useToast } from "@/components/ui/toast";
 import { isGuestClient } from "@/lib/portal";
+import type { Client } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Dialog } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { Tabs } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -26,11 +28,19 @@ const filters = [
 
 function ClientsInner() {
   const params = useSearchParams();
-  const { clients, approveClient } = useApp();
+  const { clients, approveClient, deleteClient } = useApp();
   const { toast } = useToast();
   const [open, setOpen] = useState(params.get("new") === "1");
   const [filter, setFilter] = useState("All");
   const [query, setQuery] = useState("");
+  const [toDelete, setToDelete] = useState<Client | null>(null);
+
+  const confirmDelete = () => {
+    if (!toDelete) return;
+    deleteClient(toDelete.id);
+    toast(`${toDelete.name} removed`, { variant: "info" });
+    setToDelete(null);
+  };
 
   const filtered = useMemo(
     () =>
@@ -152,6 +162,14 @@ function ClientsInner() {
                     >
                       View Profile
                     </Link>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setToDelete(c)}
+                      aria-label={`Delete ${c.name}`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-danger" />
+                    </Button>
                   </div>
                 </div>
               </Card>
@@ -161,6 +179,27 @@ function ClientsInner() {
       )}
 
       <AddClientDialog open={open} onClose={() => setOpen(false)} />
+
+      <Dialog
+        open={!!toDelete}
+        onClose={() => setToDelete(null)}
+        title="Delete client?"
+        size="sm"
+      >
+        <p className="text-sm text-muted-foreground">
+          This permanently removes{" "}
+          <span className="font-semibold text-foreground">{toDelete?.name}</span> and their
+          profile data (plans, sessions & notes) from your dashboard. This can&apos;t be undone.
+        </p>
+        <div className="mt-5 flex gap-3">
+          <Button variant="outline" className="flex-1" onClick={() => setToDelete(null)}>
+            Cancel
+          </Button>
+          <Button variant="danger" className="flex-1" onClick={confirmDelete}>
+            <Trash2 className="h-4 w-4" /> Delete
+          </Button>
+        </div>
+      </Dialog>
     </div>
   );
 }

@@ -345,6 +345,10 @@ export async function listClients(sb: SupabaseClient, creatorId: string): Promis
   return (data ?? []).map(rowToClient);
 }
 
+export async function deleteClient(sb: SupabaseClient, id: string): Promise<void> {
+  done(await sb.from("clients").delete().eq("id", id), "client");
+}
+
 /**
  * Client-portal: resolve the signed-in client's own managed record by email.
  * Relies on the "client reads self" RLS policy. Also returns the owning
