@@ -19,7 +19,8 @@ function isActive(pathname: string, href: string) {
 
 export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
-  const { user } = useApp();
+  const { user, conversations } = useApp();
+  const unreadMessages = conversations.reduce((n, c) => n + (c.unread || 0), 0);
 
   return (
     <div className="flex h-full flex-col">
@@ -59,6 +60,11 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
             >
               <Icon className="h-[18px] w-[18px]" />
               {item.label}
+              {item.href === "/dashboard/messages" && unreadMessages > 0 && (
+                <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-white">
+                  {unreadMessages}
+                </span>
+              )}
             </Link>
           );
         })}

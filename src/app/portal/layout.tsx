@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Clock, Loader2, LogOut, RefreshCw, Store } from "lucide-react";
+import { Bell, Clock, Loader2, LogOut, RefreshCw, Store } from "lucide-react";
 import { useApp } from "@/lib/store";
-import { isGuestClient } from "@/lib/portal";
+import { isGuestClient, clientConversation, clientEvents } from "@/lib/portal";
+import { unreadCoachMessages, PORTAL_READ_EVENT } from "@/lib/portal-unread";
 import { appUrl } from "@/lib/hosts";
 import { creator as seedCreator } from "@/lib/mock-data";
 import { portalNavItems, portalPageTitle } from "@/lib/portal-nav";
@@ -13,6 +14,7 @@ import { Logo } from "@/components/shared/logo";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dropdown } from "@/components/ui/dropdown";
 import { cn } from "@/lib/utils";
 
 function isActive(pathname: string, href: string) {
@@ -28,8 +30,25 @@ export default function PortalLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { clientUser, clientLogout, refreshClient, user, hydrated, coach: portalCoach } = useApp();
+  const {
+    clientUser,
+    clientLogout,
+    refreshClient,
+    user,
+    hydrated,
+    conversations,
+    events,
+    coach: portalCoach,
+  } = useApp();
   const [checking, setChecking] = useState(false);
+  const [, setReadTick] = useState(0);
+
+  // Re-render the unread badge when the client marks messages read.
+  useEffect(() => {
+    const h = () => setReadTick((t) => t + 1);
+    window.addEventListener(PORTAL_READ_EVENT, h);
+    return () => window.removeEventListener(PORTAL_READ_EVENT, h);
+  }, []);
 
   // Auth pages live under /portal but render without the shell/guard.
   const isAuthPage = pathname === "/portal/login" || pathname === "/portal/reset";
@@ -102,6 +121,23 @@ export default function PortalLayout({
     );
   }
 
+  // Unread coach messages + upcoming-session notifications for the client.
+  const conv = clientConversation(conversations, clientUser);
+  const unreadMessages = unreadCoachMessages(clientUser.id, conv);
+  const today = new Date().toISOString().slice(0, 10);
+  const upcoming = clientEvents(events, clientUser)
+    .filter((e) => e.date >= today)
+    .slice(0, 5);
+  const notifications: { text: string; href: string }[] = [
+    ...(unreadMessages > 0
+      ? [{ text: `${coach.name} sent you a message`, href: "/portal/messages" }]
+      : []),
+    ...upcoming.map((e) => ({
+      text: `Upcoming: ${e.title} · ${e.date}`,
+      href: "/portal/sessions",
+    })),
+  ];
+
   return (
     <div className="min-h-dvh">
       {/* Desktop sidebar */}
@@ -137,6 +173,11 @@ export default function PortalLayout({
               >
                 <Icon className="h-[18px] w-[18px]" />
                 {item.label}
+                {item.href === "/portal/messages" && unreadMessages > 0 && (
+                  <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-white">
+                    {unreadMessages}
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -175,14 +216,53 @@ export default function PortalLayout({
           <h1 className="hidden text-lg font-extrabold tracking-tight text-foreground lg:block">
             {portalPageTitle(pathname)}
           </h1>
-          <button
-            onClick={logout}
-            aria-label="Log out"
-            className="flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm font-semibold text-muted-foreground hover:text-foreground lg:hidden"
-          >
-            <LogOut className="h-4 w-4" />
-          </button>
-          <div className="hidden lg:block" />
+          <div className="flex items-center gap-1">
+            <Dropdown
+              align="right"
+              trigger={
+                <span className="relative flex h-10 w-10 items-center justify-center rounded-lg text-foreground hover:bg-white/[0.06]">
+                  <Bell className="h-5 w-5" />
+                  {notifications.length > 0 && (
+                    <span className="absolute right-2 top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-white">
+                      {notifications.length}
+                    </span>
+                  )}
+                </span>
+              }
+            >
+              {(close) => (
+                <div className="w-72">
+                  <p className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Notifications
+                  </p>
+                  {notifications.length === 0 ? (
+                    <p className="px-3 py-6 text-center text-sm text-muted-foreground">
+                      You&apos;re all caught up.
+                    </p>
+                  ) : (
+                    notifications.map((n, i) => (
+                      <Link
+                        key={i}
+                        href={n.href}
+                        onClick={close}
+                        className="flex items-start gap-2.5 rounded-lg px-3 py-2.5 hover:bg-white/[0.04]"
+                      >
+                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                        <p className="text-sm text-foreground">{n.text}</p>
+                      </Link>
+                    ))
+                  )}
+                </div>
+              )}
+            </Dropdown>
+            <button
+              onClick={logout}
+              aria-label="Log out"
+              className="flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm font-semibold text-muted-foreground hover:text-foreground lg:hidden"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
         </header>
 
         <main className="px-4 pb-24 pt-5 sm:px-6 lg:pb-10">{children}</main>
@@ -198,11 +278,18 @@ export default function PortalLayout({
               key={item.href}
               href={item.href}
               className={cn(
-                "flex flex-col items-center gap-1 py-2.5 text-[10px] font-semibold transition-colors active:scale-95",
+                "relative flex flex-col items-center gap-1 py-2.5 text-[10px] font-semibold transition-colors active:scale-95",
                 active ? "text-primary" : "text-muted-foreground"
               )}
             >
-              <Icon className="h-5 w-5" />
+              <span className="relative">
+                <Icon className="h-5 w-5" />
+                {item.href === "/portal/messages" && unreadMessages > 0 && (
+                  <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-white">
+                    {unreadMessages}
+                  </span>
+                )}
+              </span>
               {item.label}
             </Link>
           );

@@ -5,6 +5,7 @@ import { Send } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { creator as seedCreator } from "@/lib/mock-data";
 import { clientConversation } from "@/lib/portal";
+import { markPortalMessagesRead } from "@/lib/portal-unread";
 import { LIMITS } from "@/lib/security";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,11 @@ export default function PortalMessages() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages.length]);
+
+  // Opening the thread marks coach messages as read (clears the unread badge).
+  useEffect(() => {
+    if (clientUser) markPortalMessagesRead(clientUser.id, conv);
+  }, [clientUser, conv, messages.length]);
 
   if (!clientUser) return null;
 
