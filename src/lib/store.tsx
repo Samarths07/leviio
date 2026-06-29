@@ -110,6 +110,8 @@ interface AppContextValue {
   clientLogout: () => void;
   /** Re-fetch the signed-in client's own data (used by the approval waiting screen). */
   refreshClient: () => Promise<void>;
+  /** Client → coach message (persists via service-role; no creator session needed). */
+  sendClientMessage: (text: string) => Promise<void>;
   // products
   products: Product[];
   addProduct: (p: Product) => void;
@@ -226,68 +228,87 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCoach(null);
   }, []);
 
-  // Load the signed-in client's own data (orders, assigned plan/program,
-  // sessions, messages, coach) via the RLS-scoped client-portal queries.
+  // Load the signed-in client's own data. Primary source is the service-role
+  // /api/portal/me route, so assigned plans/sessions/messages always show even
+  // if the client-side RLS policies aren't present. Falls back to RLS reads.
   const loadClientData = useCallback(
     async (email: string): Promise<Client | null> => {
       if (!sb) return null;
       // A portal client is never a creator — clear any creator state so the
       // dashboard guard can't see a stale `user`.
       setUser(null);
-      // Resolve the managed client via a service-role route first so login
-      // works regardless of the "client reads self" RLS policy; fall back to
-      // the RLS-scoped read if the route is unavailable.
-      let managed: { client: Client; creatorId: string } | null = null;
+
+      // 1) Pull everything from the service-role route in one shot.
+      let me: {
+        client?: Client | null;
+        coachId?: string | null;
+        orders?: Order[];
+        mealPlan?: MealPlan | null;
+        program?: WorkoutProgram | null;
+        events?: CalendarEvent[];
+        conversations?: Conversation[];
+      } | null = null;
       try {
         const r = await fetch("/api/portal/me");
-        if (r.ok) {
-          const d = await r.json();
-          if (d?.client) managed = { client: d.client as Client, creatorId: d.coachId as string };
-        }
+        if (r.ok) me = await r.json();
       } catch {
-        /* fall back below */
+        /* fall back to RLS reads below */
       }
-      if (!managed) managed = await db.getClientByEmail(sb, email);
-      const ords = await db.listOrdersByEmail(sb, email);
-      let resolved: Client | null = managed?.client ?? null;
-      let coachId: string | null = managed?.creatorId ?? null;
+
+      let resolved: Client | null = me?.client ?? null;
+      let coachId: string | null = me?.coachId ?? null;
+      const ords: Order[] = me?.orders ?? (await db.listOrdersByEmail(sb, email));
+
+      // Fallbacks when the route is unavailable.
+      if (!resolved) {
+        const managed = await db.getClientByEmail(sb, email);
+        if (managed) {
+          resolved = managed.client;
+          coachId = managed.creatorId;
+        }
+      }
       if (!resolved && ords.length) {
         resolved = makeGuestClient(email, ords[0].client);
-        coachId = await db.getCoachIdByEmail(sb, email);
+        if (!coachId) coachId = await db.getCoachIdByEmail(sb, email);
       }
       if (!resolved) {
         setClientUser(null);
         return null;
       }
+
       // First time a coach-added client signs in, turn their 'none' record into
       // a 'pending' request so the coach gets an Approve button.
-      if (managed?.client && resolved.portalStatus === "none") {
+      if (resolved.portalStatus === "none") {
         try {
           await fetch("/api/portal/request-access", { method: "POST" });
         } catch {
-          // best-effort; the gate still blocks access until approved
+          /* best-effort; the gate still blocks access until approved */
         }
         resolved = { ...resolved, portalStatus: "pending" };
       }
+
       setClientUser(resolved);
       setOrders(ords);
       setClients([resolved]);
       setProducts([]);
 
+      // Assigned plan / program — prefer the route payload, else RLS reads.
       const meals: MealPlan[] = [];
       const progs: WorkoutProgram[] = [];
-      if (resolved.mealPlanId) {
+      if (me?.mealPlan) meals.push(me.mealPlan);
+      else if (resolved.mealPlanId) {
         const mp = await db.getMealPlan(sb, resolved.mealPlanId);
         if (mp) meals.push(mp);
       }
-      if (resolved.programId) {
+      if (me?.program) progs.push(me.program);
+      else if (resolved.programId) {
         const pr = await db.getProgram(sb, resolved.programId);
         if (pr) progs.push(pr);
       }
       setMealPlans(meals);
       setPrograms(progs);
-      setEvents(await db.listClientEvents(sb));
-      setConversations(await db.listClientConversations(sb));
+      setEvents(me?.events ?? (await db.listClientEvents(sb)));
+      setConversations(me?.conversations ?? (await db.listClientConversations(sb)));
       // Coach is shown to the client → use the email-free public profile.
       if (coachId) setCoach(await db.getPublicProfile(sb, coachId));
       return resolved;
@@ -716,6 +737,49 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (clientUser?.email) await loadClientData(clientUser.email);
   }, [clientUser, loadClientData]);
 
+  // Client → coach message. Optimistic, then persisted via the service-role
+  // route (clients have no creator session to insert directly).
+  const sendClientMessage = useCallback(
+    async (text: string) => {
+      const body = text.trim();
+      if (!body || !clientUser) return;
+      const convId = "conv_" + clientUser.id;
+      const msg: Message = { id: uid("m"), from: "client", text: body, time: "now" };
+      setConversations((prev) => {
+        const existing = prev.find((c) => c.id === convId || c.clientId === clientUser.id);
+        if (existing)
+          return prev.map((c) =>
+            c.id === existing.id ? { ...c, messages: [...c.messages, msg] } : c
+          );
+        return [
+          {
+            id: convId,
+            clientId: clientUser.id,
+            clientName: clientUser.name,
+            clientAvatar: clientUser.avatarSeed,
+            unread: 0,
+            messages: [msg],
+          },
+          ...prev,
+        ];
+      });
+      try {
+        const res = await fetch("/api/portal/message", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: body }),
+        });
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}));
+          reportError(new Error(d?.error ?? "Couldn't send message"), "message");
+        }
+      } catch (e) {
+        reportError(e, "message");
+      }
+    },
+    [clientUser, reportError]
+  );
+
   // Email a password-reset link (needs SMTP configured in Supabase).
   const clientForgotPassword = useCallback(
     async (email: string): Promise<{ ok: boolean; error?: string }> => {
@@ -996,6 +1060,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateAuthPassword,
       clientLogout,
       refreshClient,
+      sendClientMessage,
       products,
       addProduct,
       updateProduct,
@@ -1030,7 +1095,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }),
     [
       hydrated, user, login, signup, logout, updateUser,
-      coach, clientUser, clientLogin, clientSignup, clientForgotPassword, updateAuthPassword, clientLogout, refreshClient,
+      coach, clientUser, clientLogin, clientSignup, clientForgotPassword, updateAuthPassword, clientLogout, refreshClient, sendClientMessage,
       products, addProduct, updateProduct, deleteProduct,
       clients, addClient, updateClient, deleteClient, approveClient,
       mealPlans, saveMealPlan, deleteMealPlan,

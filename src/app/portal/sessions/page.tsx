@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
+import { appUrl } from "@/lib/hosts";
 import {
   CalendarCheck,
   CalendarPlus,
@@ -114,12 +115,12 @@ export default function PortalSessions() {
                   </p>
                 </div>
               </div>
-              <Link
-                href={`/book/${o.id}`}
+              <a
+                href={appUrl(`/book/${o.id}`)}
                 className={cn(buttonVariants({ size: "sm" }))}
               >
                 <CalendarCheck className="h-4 w-4" /> Book now
-              </Link>
+              </a>
             </Card>
           ))}
         </div>

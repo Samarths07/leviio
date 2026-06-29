@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { appUrl } from "@/lib/hosts";
 import {
   ArrowRight,
   CalendarCheck,
@@ -219,12 +220,12 @@ export default function PortalHome() {
             <p className="text-sm text-muted-foreground">
               Your purchases will appear here.
             </p>
-            <Link
-              href={`/${coach.username}`}
+            <a
+              href={appUrl(`/${coach.username}`)}
               className={cn(buttonVariants({ size: "sm" }), "mt-1")}
             >
               Browse store
-            </Link>
+            </a>
           </Card>
         ) : (
           <Card className="divide-y divide-border">

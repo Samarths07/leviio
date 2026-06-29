@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { appUrl } from "@/lib/hosts";
 import {
   BadgeCheck,
   CalendarCheck,
@@ -205,12 +206,12 @@ function LibraryCard({
               <BadgeCheck className="mr-1 h-3.5 w-3.5" /> Completed
             </Badge>
           ) : (
-            <Link
-              href={`/book/${order.id}`}
+            <a
+              href={appUrl(`/book/${order.id}`)}
               className={cn(buttonVariants({ size: "sm" }))}
             >
               <CalendarCheck className="h-4 w-4" /> Book session
-            </Link>
+            </a>
           ))}
 
         {type === "Physical" && (

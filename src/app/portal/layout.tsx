@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Clock, Loader2, LogOut, RefreshCw, Store } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { isGuestClient } from "@/lib/portal";
+import { appUrl } from "@/lib/hosts";
 import { creator as seedCreator } from "@/lib/mock-data";
 import { portalNavItems, portalPageTitle } from "@/lib/portal-nav";
 import { Logo } from "@/components/shared/logo";
@@ -149,12 +150,12 @@ export default function PortalLayout({
               <p className="truncate text-xs font-bold text-foreground">{coach.name}</p>
             </div>
           </div>
-          <Link
-            href={`/${coach.username}`}
+          <a
+            href={appUrl(`/${coach.username}`)}
             className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-white/[0.04] hover:text-foreground"
           >
             <Store className="h-[18px] w-[18px]" /> Browse store
-          </Link>
+          </a>
           <button
             onClick={logout}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-white/[0.04] hover:text-danger"

@@ -16,8 +16,7 @@ export default function PortalMessages() {
     clientUser,
     conversations,
     user,
-    sendMessage,
-    createConversation,
+    sendClientMessage,
     coach: portalCoach,
   } = useApp();
   const coach = portalCoach ?? user ?? seedCreator;
@@ -38,8 +37,7 @@ export default function PortalMessages() {
   const send = () => {
     const text = draft.trim();
     if (!text) return;
-    const id = conv?.id ?? createConversation(clientUser);
-    sendMessage(id, text, "client");
+    sendClientMessage(text);
     setDraft("");
   };
 
