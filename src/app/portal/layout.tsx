@@ -35,8 +35,11 @@ export default function PortalLayout({
   const coach = portalCoach ?? user ?? seedCreator;
 
   useEffect(() => {
-    if (hydrated && !clientUser && !isAuthPage) router.replace("/portal/login");
-  }, [hydrated, clientUser, isAuthPage, router]);
+    if (hydrated && !clientUser && !isAuthPage) {
+      // A signed-in creator isn't a portal client — send them to their dashboard.
+      router.replace(user ? "/dashboard" : "/portal/login");
+    }
+  }, [hydrated, clientUser, user, isAuthPage, router]);
 
   if (isAuthPage) return <>{children}</>;
 

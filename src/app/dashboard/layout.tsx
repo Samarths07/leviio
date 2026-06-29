@@ -16,13 +16,14 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, hydrated } = useApp();
+  const { user, clientUser, hydrated } = useApp();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Auth guard
+  // Auth guard. The dashboard is creator-only: a signed-in portal client is
+  // sent to their portal, anyone else to the creator login.
   useEffect(() => {
-    if (hydrated && !user) router.replace("/login");
-  }, [hydrated, user, router]);
+    if (hydrated && !user) router.replace(clientUser ? "/portal" : "/login");
+  }, [hydrated, user, clientUser, router]);
 
   // close drawer on route change
   useEffect(() => setDrawerOpen(false), [pathname]);

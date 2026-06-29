@@ -231,6 +231,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const loadClientData = useCallback(
     async (email: string): Promise<Client | null> => {
       if (!sb) return null;
+      // A portal client is never a creator — clear any creator state so the
+      // dashboard guard can't see a stale `user`.
+      setUser(null);
       // Resolve the managed client via a service-role route first so login
       // works regardless of the "client reads self" RLS policy; fall back to
       // the RLS-scoped read if the route is unavailable.
@@ -498,35 +501,44 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (error || !data.user) return false;
 
         let profile = await db.getProfile(sb, data.user.id);
-      if (!profile) {
-        // First login on a confirm-email project: create the profile now,
-        // backfilled from the metadata captured at signup.
-        const md = (data.user.user_metadata ?? {}) as {
-          name?: string;
-          username?: string;
-        };
-        const fallbackName = md.name || data.user.email?.split("@")[0] || "Creator";
-        profile = {
-          id: data.user.id,
-          name: fallbackName,
-          email: data.user.email ?? email.trim(),
-          username:
-            md.username ||
-            fallbackName.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 16),
-          niche: "",
-          bio: "",
-          location: "",
-          avatarSeed: fallbackName,
-          bannerColor: "#7c3aed",
-          followers: 0,
-          plan: "Pro",
-          trial: true,
-          planExpiresAt: newTrialExpiry(),
-          socials: {},
-          isDemo: false,
-        };
+        if (!profile) {
+          // No creator profile. Only auto-create one for accounts that actually
+          // signed up as a creator — signup stores name+username in user
+          // metadata (needed for confirm-email projects where the profile
+          // insert is deferred to first login). A CLIENT account (added by a
+          // coach / portal sign-up) has no such metadata, so we must NEVER turn
+          // it into a creator. Sign it out and reject — they belong in the
+          // client portal.
+          const md = (data.user.user_metadata ?? {}) as {
+            name?: string;
+            username?: string;
+          };
+          if (!md.name || !md.username) {
+            await sb.auth.signOut();
+            setUser(null);
+            setClientUser(null);
+            return false;
+          }
+          profile = {
+            id: data.user.id,
+            name: md.name,
+            email: data.user.email ?? email.trim(),
+            username: md.username,
+            niche: "",
+            bio: "",
+            location: "",
+            avatarSeed: md.name,
+            bannerColor: "#7c3aed",
+            followers: 0,
+            plan: "Pro",
+            trial: true,
+            planExpiresAt: newTrialExpiry(),
+            socials: {},
+            isDemo: false,
+          };
           await db.insertProfile(sb, profile).catch(() => {});
         }
+        setClientUser(null);
         setUser(normalizeUser(profile));
         await loadCreatorData(data.user.id);
         return true;
