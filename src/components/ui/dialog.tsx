@@ -42,7 +42,7 @@ export function Dialog({
   };
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-end justify-center sm:items-center">
+    <div className="fixed inset-x-0 top-0 z-[150] flex h-[100dvh] items-end justify-center sm:items-center">
       <div
         onClick={onClose}
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -77,7 +77,7 @@ export function Dialog({
             </button>
           </div>
         )}
-        <div className="p-5">{children}</div>
+        <div className="p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">{children}</div>
       </div>
     </div>
   );
