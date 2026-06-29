@@ -31,7 +31,39 @@ export async function middleware(request: NextRequest) {
   });
 
   // Touch the session to trigger a refresh when needed.
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const path = request.nextUrl.pathname;
+  const isDashboard = path.startsWith("/dashboard");
+  const isPortalApp =
+    path.startsWith("/portal") &&
+    path !== "/portal/login" &&
+    path !== "/portal/reset";
+
+  // Server-side role gate — race-free, runs before the page renders.
+  // A "creator" is an account that has a profiles row; a "client" has none.
+  if (isDashboard || isPortalApp) {
+    const redirectTo = (to: string) => {
+      const r = NextResponse.redirect(new URL(to, request.url));
+      response.cookies.getAll().forEach((c) => r.cookies.set(c));
+      return r;
+    };
+
+    if (!user) return redirectTo(isDashboard ? "/login" : "/portal/login");
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", user.id)
+      .maybeSingle();
+    const isCreator = !!profile;
+
+    // Creator dashboard requires a creator; client portal forbids creators.
+    if (isDashboard && !isCreator) return redirectTo("/portal");
+    if (isPortalApp && isCreator) return redirectTo("/dashboard");
+  }
 
   return response;
 }
