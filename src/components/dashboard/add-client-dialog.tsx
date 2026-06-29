@@ -64,34 +64,31 @@ export function AddClientDialog({
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()))
       errs.email = "Enter a valid email address";
 
-    // Phone — optional; if set, must look like a real phone number (7–15 digits).
+    // Phone — the ONLY optional field; if set, must look like a real number.
     if (form.phone.trim()) {
       const digits = form.phone.replace(/\D/g, "");
       if (!/^[+\d][\d\s()-]{6,19}$/.test(form.phone.trim()) || digits.length < 7 || digits.length > 15)
         errs.phone = "Enter a valid phone number";
     }
 
-    // Age — optional; if set, must be a sane whole number.
-    if (form.age.trim()) {
-      const age = Number(form.age);
-      if (!Number.isInteger(age) || age < 5 || age > 120) errs.age = "Age must be 5–120";
-    }
+    // Age — required, sane whole number.
+    const age = Number(form.age);
+    if (!form.age.trim()) errs.age = "Age is required";
+    else if (!Number.isInteger(age) || age < 5 || age > 120) errs.age = "Age must be 5–120";
 
-    // Height (cm) — optional; if set, must be realistic.
-    if (form.height.trim()) {
-      const h = Number(form.height);
-      if (!Number.isFinite(h) || h < 50 || h > 260) errs.height = "Height must be 50–260 cm";
-    }
+    // Height (cm) — required, realistic.
+    const h = Number(form.height);
+    if (!form.height.trim()) errs.height = "Height is required";
+    else if (!Number.isFinite(h) || h < 50 || h > 260) errs.height = "Height must be 50–260 cm";
 
-    // Weight (kg) — optional; if set, must be realistic.
-    if (form.weight.trim()) {
-      const w = Number(form.weight);
-      if (!Number.isFinite(w) || w < 20 || w > 400) errs.weight = "Weight must be 20–400 kg";
-    }
+    // Weight (kg) — required, realistic.
+    const w = Number(form.weight);
+    if (!form.weight.trim()) errs.weight = "Weight is required";
+    else if (!Number.isFinite(w) || w < 20 || w > 400) errs.weight = "Weight must be 20–400 kg";
 
-    // Password is optional — only validate length when the coach actually sets one.
-    if (form.password.trim() && form.password.trim().length < 6)
-      errs.password = "At least 6 characters";
+    // Password — required so the client gets a working portal login.
+    if (!form.password.trim()) errs.password = "Set a portal password";
+    else if (form.password.trim().length < 6) errs.password = "At least 6 characters";
 
     setErrors(errs);
     if (Object.keys(errs).length) return;
@@ -178,7 +175,7 @@ export function AddClientDialog({
             {errors.email && <p className="mt-1 text-xs text-danger">{errors.email}</p>}
           </div>
           <div>
-            <Label>Phone</Label>
+            <Label>Phone (optional)</Label>
             <Input value={form.phone} onChange={(e) => set({ phone: e.target.value })} placeholder="+1 555 000 0000" inputMode="tel" />
             {errors.phone && <p className="mt-1 text-xs text-danger">{errors.phone}</p>}
           </div>
@@ -221,7 +218,7 @@ export function AddClientDialog({
             <Textarea value={form.notes} onChange={(e) => set({ notes: e.target.value })} rows={2} placeholder="Anything important about this client..." />
           </div>
           <div className="col-span-2">
-            <Label>Portal password (optional)</Label>
+            <Label>Portal password</Label>
             <div className="relative">
               <Input
                 type={showPw ? "text" : "password"}
@@ -253,7 +250,7 @@ export function AddClientDialog({
               <p className="mt-1 text-xs text-danger">{errors.password}</p>
             ) : (
               <p className="mt-1 text-xs text-muted-foreground">
-                Set one and share it so they can log in right away — or leave blank and they&apos;ll create their own at the portal.
+                Share this email + password with your client so they can log in to the portal.
               </p>
             )}
           </div>

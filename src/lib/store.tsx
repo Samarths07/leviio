@@ -231,7 +231,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const loadClientData = useCallback(
     async (email: string): Promise<Client | null> => {
       if (!sb) return null;
-      const managed = await db.getClientByEmail(sb, email);
+      // Resolve the managed client via a service-role route first so login
+      // works regardless of the "client reads self" RLS policy; fall back to
+      // the RLS-scoped read if the route is unavailable.
+      let managed: { client: Client; creatorId: string } | null = null;
+      try {
+        const r = await fetch("/api/portal/me");
+        if (r.ok) {
+          const d = await r.json();
+          if (d?.client) managed = { client: d.client as Client, creatorId: d.coachId as string };
+        }
+      } catch {
+        /* fall back below */
+      }
+      if (!managed) managed = await db.getClientByEmail(sb, email);
       const ords = await db.listOrdersByEmail(sb, email);
       let resolved: Client | null = managed?.client ?? null;
       let coachId: string | null = managed?.creatorId ?? null;
