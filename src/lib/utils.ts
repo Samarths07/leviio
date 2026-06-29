@@ -103,8 +103,26 @@ export function img(seed: string, w = 600, h = 600): string {
   return `https://picsum.photos/seed/${encodeURIComponent(seed)}/${w}/${h}`;
 }
 
-export function uid(prefix = "id"): string {
-  return `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
+/**
+ * Generate a record id. Returns a real UUID so the value is valid for both
+ * `uuid` and `text` primary-key columns — this avoids "invalid input syntax
+ * for type uuid" errors regardless of how a table was created. The optional
+ * prefix is ignored (kept only for call-site readability/back-compat).
+ */
+export function uid(_prefix = "id"): string {
+  try {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID();
+    }
+  } catch {
+    /* fall through to manual generator */
+  }
+  // RFC4122-ish v4 fallback.
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }
 
 /** Deterministic pseudo-random number generator for stable mock data */
