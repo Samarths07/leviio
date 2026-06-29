@@ -36,6 +36,49 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
+  const search = request.nextUrl.search;
+  const proto = request.nextUrl.protocol; // "https:" in prod
+  const host = request.headers.get("host") ?? "";
+
+  // Optional two-host split (Option A): creator app on APP_HOST, client portal
+  // on PORTAL_HOST. Active only when BOTH are configured; otherwise single-domain.
+  const appHost = process.env.NEXT_PUBLIC_APP_HOST;
+  const portalHost = process.env.NEXT_PUBLIC_PORTAL_HOST;
+  const splitHosts = Boolean(appHost && portalHost);
+  const onPortalHost = splitHosts && host === portalHost;
+
+  const carryCookies = (r: NextResponse) => {
+    response.cookies.getAll().forEach((c) => r.cookies.set(c));
+    return r;
+  };
+  const ext = (h: string, p: string) =>
+    carryCookies(NextResponse.redirect(`${proto}//${h}${p}${search}`));
+
+  // Route a logical path to the correct host (or stay relative in single-domain).
+  const goTo = (p: string) => {
+    if (!splitHosts) return carryCookies(NextResponse.redirect(new URL(p, request.url)));
+    const targetHost = p.startsWith("/portal") ? portalHost! : appHost!;
+    return ext(targetHost, p);
+  };
+
+  // --- Host routing: keep each surface on its own domain ---
+  if (splitHosts) {
+    if (onPortalHost) {
+      // The portal subdomain serves ONLY the client portal (+ api + auth callback).
+      if (path === "/") return ext(portalHost!, "/portal/login");
+      if (
+        !path.startsWith("/portal") &&
+        !path.startsWith("/api") &&
+        !path.startsWith("/auth")
+      ) {
+        return ext(appHost!, path);
+      }
+    } else if (host === appHost) {
+      // The main host hands the client portal off to the subdomain.
+      if (path.startsWith("/portal")) return ext(portalHost!, path);
+    }
+  }
+
   const isDashboard = path.startsWith("/dashboard");
   const isPortalApp =
     path.startsWith("/portal") &&
@@ -45,13 +88,7 @@ export async function middleware(request: NextRequest) {
   // Server-side role gate — race-free, runs before the page renders.
   // A "creator" is an account that has a profiles row; a "client" has none.
   if (isDashboard || isPortalApp) {
-    const redirectTo = (to: string) => {
-      const r = NextResponse.redirect(new URL(to, request.url));
-      response.cookies.getAll().forEach((c) => r.cookies.set(c));
-      return r;
-    };
-
-    if (!user) return redirectTo(isDashboard ? "/login" : "/portal/login");
+    if (!user) return goTo(isDashboard ? "/login" : "/portal/login");
 
     const { data: profile } = await supabase
       .from("profiles")
@@ -61,8 +98,8 @@ export async function middleware(request: NextRequest) {
     const isCreator = !!profile;
 
     // Creator dashboard requires a creator; client portal forbids creators.
-    if (isDashboard && !isCreator) return redirectTo("/portal");
-    if (isPortalApp && isCreator) return redirectTo("/dashboard");
+    if (isDashboard && !isCreator) return goTo("/portal");
+    if (isPortalApp && isCreator) return goTo("/dashboard");
   }
 
   return response;

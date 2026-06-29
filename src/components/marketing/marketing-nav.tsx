@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { Logo } from "@/components/shared/logo";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { portalUrl } from "@/lib/hosts";
 import { cn } from "@/lib/utils";
 
 const links = [
@@ -49,12 +50,12 @@ export function MarketingNav() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Link
-            href="/portal/login"
+          <a
+            href={portalUrl()}
             className="hidden rounded-lg px-3.5 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground lg:block"
           >
             Client login
-          </Link>
+          </a>
           <Link
             href="/login"
             className="hidden rounded-lg px-3.5 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground sm:block"
@@ -93,13 +94,13 @@ export function MarketingNav() {
           >
             Creator login
           </Link>
-          <Link
-            href="/portal/login"
+          <a
+            href={portalUrl()}
             onClick={() => setOpen(false)}
             className="block rounded-lg px-3 py-3 text-base font-semibold text-muted-foreground hover:text-foreground"
           >
             Client login
-          </Link>
+          </a>
         </div>
       )}
     </header>

@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { DashboardPreview } from "@/components/marketing/dashboard-preview";
 import { PricingSection } from "@/components/marketing/pricing-section";
 import { Testimonials } from "@/components/marketing/testimonials";
+import { portalUrl } from "@/lib/hosts";
 import { cn } from "@/lib/utils";
 
 export default function LandingPage() {
@@ -53,12 +54,12 @@ export default function LandingPage() {
 
             <p className="mt-4 text-sm text-muted-foreground">
               Training with a coach who uses Leviio?{" "}
-              <Link
-                href="/portal/login"
+              <a
+                href={portalUrl()}
                 className="font-semibold text-primary hover:underline"
               >
                 Open your client portal →
-              </Link>
+              </a>
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
