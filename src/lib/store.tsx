@@ -646,7 +646,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
           const d = await r.json().catch(() => ({}));
           if (d?.created) {
             ({ data, error } = await sb.auth.signInWithPassword({ email: addr, password }));
-          } else if (d?.error && !d?.existed) {
+          } else if (d?.existed) {
+            return {
+              ok: false,
+              error: "Wrong password. This account already exists — use your password or tap Forgot password.",
+            };
+          } else if (d?.error) {
             return { ok: false, error: d.error };
           }
         } catch {
