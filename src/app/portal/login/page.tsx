@@ -6,6 +6,7 @@ import { Dumbbell, Eye, EyeOff, Loader2, LockKeyhole, ShieldAlert } from "lucide
 import { useApp } from "@/lib/store";
 import { useToast } from "@/components/ui/toast";
 import { Logo } from "@/components/shared/logo";
+import { GoogleButton } from "@/components/auth/google-button";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import {
@@ -125,7 +126,13 @@ export default function PortalLoginPage() {
             </p>
           </div>
 
-          <form onSubmit={submit} className="mt-6 space-y-4">
+          <div className="mt-6">
+            <GoogleButton role="client" />
+            <div className="my-5 flex items-center gap-3 text-xs font-medium text-muted-foreground">
+              <span className="h-px flex-1 bg-border" /> OR <span className="h-px flex-1 bg-border" />
+            </div>
+          </div>
+          <form onSubmit={submit} className="space-y-4">
             <div>
               <Label htmlFor="email">Your email</Label>
               <Input

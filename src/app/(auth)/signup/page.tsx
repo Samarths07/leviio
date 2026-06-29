@@ -8,6 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Eye, EyeOff, Loader2, ShieldAlert } from "lucide-react";
 import { AuthSidePanel } from "@/components/auth/auth-side-panel";
+import { GoogleButton } from "@/components/auth/google-button";
 import { Logo } from "@/components/shared/logo";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
@@ -98,7 +99,13 @@ export default function SignupPage() {
             Start your 1-month free trial. No card required.
           </p>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
+          <div className="mt-6">
+            <GoogleButton role="creator" label="Sign up with Google" />
+            <div className="my-5 flex items-center gap-3 text-xs font-medium text-muted-foreground">
+              <span className="h-px flex-1 bg-border" /> OR <span className="h-px flex-1 bg-border" />
+            </div>
+          </div>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
               <Label htmlFor="name">Full name</Label>
               <Input id="name" placeholder="Alisha Fernandez" {...register("name")} />
