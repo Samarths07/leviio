@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +20,13 @@ export function Dialog({
   children: React.ReactNode;
   size?: "sm" | "md" | "lg" | "xl";
 }) {
+  // Render into <body> so the fixed overlay is always relative to the viewport.
+  // Without this, an ancestor with a transform (e.g. animate-fade-in's final
+  // translateY(0)) becomes the containing block and the dialog renders in the
+  // wrong place / behind the mobile bottom nav.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
     return () => {
@@ -32,7 +40,7 @@ export function Dialog({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
   const sizes = {
     sm: "max-w-sm",
@@ -41,7 +49,7 @@ export function Dialog({
     xl: "max-w-4xl",
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-x-0 top-0 z-[150] flex h-[100dvh] items-end justify-center sm:items-center">
       <div
         onClick={onClose}
@@ -79,6 +87,7 @@ export function Dialog({
         )}
         <div className="p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
