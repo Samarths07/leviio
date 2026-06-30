@@ -3,8 +3,10 @@
 import Link from "next/link";
 import {
   Apple,
+  ArrowRight,
   CalendarPlus,
   DollarSign,
+  ExternalLink,
   Package,
   ShoppingCart,
   TrendingUp,
@@ -37,6 +39,7 @@ export default function OverviewPage() {
 
   const metrics = overviewMetrics(orders, clients, events);
   const revenue30 = revenueByDay(orders, 30);
+  const revenueTotal = revenue30.reduce((s, d) => s + d.revenue, 0);
   const topProducts = topProductsFromOrders(orders, 5);
   const maxRevenue = Math.max(1, ...topProducts.map((p) => p.revenue));
 
@@ -50,14 +53,34 @@ export default function OverviewPage() {
 
   return (
     <div className="animate-fade-in space-y-6">
-      {/* Greeting */}
-      <div>
-        <h2 className="text-xl font-extrabold tracking-tight text-foreground">
-          Welcome back, {user?.name?.split(" ")[0]} 👋
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Here&apos;s what&apos;s happening with your business today.
-        </p>
+      {/* Header */}
+      <div className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Overview
+          </p>
+          <h2 className="mt-1.5 text-2xl font-extrabold tracking-tight text-foreground">
+            Welcome back, {user?.name?.split(" ")[0]} 👋
+          </h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Here&apos;s what&apos;s happening with your business today.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="hidden rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-muted-foreground md:block">
+            {formatDate(today, "long")}
+          </span>
+          {user?.username && (
+            <a
+              href={`/${user.username}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+            >
+              <ExternalLink className="h-4 w-4" /> View store
+            </a>
+          )}
+        </div>
       </div>
 
       {/* Setup / activation checklist */}
@@ -95,35 +118,42 @@ export default function OverviewPage() {
       </div>
 
       {/* Quick actions */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {quickActions.map((a) => (
-          <Link
-            key={a.label}
-            href={a.href}
-            className="group flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/40 hover:ring-1 hover:ring-primary/20"
-          >
-            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 text-primary transition-transform group-hover:scale-110">
-              <a.icon className="h-5 w-5" />
-            </span>
-            <span className="text-sm font-bold text-foreground">{a.label}</span>
-          </Link>
-        ))}
+      <div>
+        <p className="mb-2.5 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+          Quick actions
+        </p>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {quickActions.map((a) => (
+            <Link
+              key={a.label}
+              href={a.href}
+              className="group flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/40 hover:bg-white/[0.02] hover:ring-1 hover:ring-primary/20"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary transition-transform group-hover:scale-110">
+                <a.icon className="h-5 w-5" />
+              </span>
+              <span className="flex-1 text-sm font-bold text-foreground">{a.label}</span>
+              <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+            </Link>
+          ))}
+        </div>
       </div>
 
       {/* Revenue chart */}
       <Card>
-        <CardHeader className="flex-row items-center justify-between">
+        <CardHeader className="flex-row items-start justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-primary" />
-              Revenue
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+              <TrendingUp className="h-4 w-4 text-primary" /> Revenue · last 30 days
             </CardTitle>
-            <p className="mt-0.5 text-xs text-muted-foreground">Last 30 days</p>
+            <p className="mt-1.5 text-3xl font-extrabold tracking-tight text-foreground">
+              {formatCurrency(revenueTotal)}
+            </p>
           </div>
           {metrics.revenueChange !== 0 && (
             <Badge variant={metrics.revenueChange > 0 ? "success" : "danger"}>
               {metrics.revenueChange > 0 ? "+" : ""}
-              {metrics.revenueChange}%
+              {metrics.revenueChange}% vs last month
             </Badge>
           )}
         </CardHeader>
@@ -139,9 +169,9 @@ export default function OverviewPage() {
             <CardTitle>Recent Orders</CardTitle>
             <Link
               href="/dashboard/orders"
-              className="text-xs font-semibold text-primary hover:underline"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
             >
-              View all
+              View all <ArrowRight className="h-3 w-3" />
             </Link>
           </CardHeader>
           <CardContent className="px-0">
@@ -158,7 +188,7 @@ export default function OverviewPage() {
                 <tbody>
                   {recentOrders.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="px-5 py-8 text-center text-sm text-muted-foreground">
+                      <td colSpan={4} className="px-5 py-10 text-center text-sm text-muted-foreground">
                         No orders yet — they&apos;ll appear here after your first sale.
                       </td>
                     </tr>
@@ -225,14 +255,16 @@ export default function OverviewPage() {
             <CardTitle>Upcoming Sessions</CardTitle>
             <Link
               href="/dashboard/calendar"
-              className="text-xs font-semibold text-primary hover:underline"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
             >
-              Calendar
+              Calendar <ArrowRight className="h-3 w-3" />
             </Link>
           </CardHeader>
           <CardContent className="space-y-3">
             {upcoming.length === 0 && (
-              <p className="text-sm text-muted-foreground">No upcoming sessions.</p>
+              <p className="rounded-xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+                No upcoming sessions.
+              </p>
             )}
             {upcoming.map((e) => (
               <div
@@ -267,14 +299,16 @@ export default function OverviewPage() {
             <CardTitle>Recent Clients</CardTitle>
             <Link
               href="/dashboard/clients"
-              className="text-xs font-semibold text-primary hover:underline"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
             >
-              View all
+              View all <ArrowRight className="h-3 w-3" />
             </Link>
           </CardHeader>
           <CardContent className="space-y-3">
             {recentClients.length === 0 && (
-              <p className="text-sm text-muted-foreground">No clients yet.</p>
+              <p className="rounded-xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+                No clients yet.
+              </p>
             )}
             {recentClients.map((c) => (
               <Link
