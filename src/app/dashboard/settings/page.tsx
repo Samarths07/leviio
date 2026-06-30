@@ -18,7 +18,7 @@ import {
 import { useApp } from "@/lib/store";
 import { useToast } from "@/components/ui/toast";
 import { niches, pricingPlans, themeSwatches } from "@/lib/mock-data";
-import { PLATFORM_FEE_PERCENT } from "@/lib/billing";
+import { platformFeePercent, PLATFORM_FEE_FREE } from "@/lib/billing";
 import { cn, formatCurrency, formatDate, newTrialExpiry } from "@/lib/utils";
 import { PlanPurchaseDialog } from "@/components/dashboard/plan-purchase-dialog";
 import { AvatarUpload } from "@/components/shared/avatar-upload";
@@ -86,7 +86,9 @@ function SettingsInner() {
 
 function PayoutsTab({ user, onSave, toast }: any) {
   const connected = !!user.razorpayAccountId;
-  const creatorShare = 100 - PLATFORM_FEE_PERCENT;
+  const fee = platformFeePercent(user.plan);
+  const creatorShare = 100 - fee;
+  const isPro = user.plan === "Pro";
   return (
     <div className="space-y-5">
       <Card>
@@ -102,9 +104,21 @@ function PayoutsTab({ user, onSave, toast }: any) {
           <p className="text-sm text-muted-foreground">
             Storefront sales are split automatically with Razorpay Route: you keep{" "}
             <span className="font-semibold text-foreground">{creatorShare}%</span> of every sale,
-            paid to your Razorpay linked account; Leviio keeps {PLATFORM_FEE_PERCENT}% as
-            platform fee. Pro subscription is separate.
+            paid to your Razorpay linked account
+            {fee > 0 ? `; Leviio keeps ${fee}% as platform fee` : " — no platform fee on Pro"}.
           </p>
+          {!isPro && (
+            <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 p-3 text-xs">
+              <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+              <span className="text-foreground">
+                Free plan pays a {PLATFORM_FEE_FREE}% fee per sale.{" "}
+                <a href="/dashboard/settings?tab=billing" className="font-semibold text-primary hover:underline">
+                  Upgrade to Pro
+                </a>{" "}
+                to keep 100%.
+              </span>
+            </div>
+          )}
 
           <div>
             <Label>Razorpay linked account ID</Label>

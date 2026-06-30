@@ -6,7 +6,7 @@ import {
 } from "@/lib/razorpay/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient as createServerSupabase } from "@/lib/supabase/server";
-import { PRO_PRICE_INR, PLATFORM_FEE_PERCENT } from "@/lib/billing";
+import { PRO_PRICE_INR, platformFeePercent } from "@/lib/billing";
 
 export const runtime = "nodejs";
 
@@ -65,10 +65,11 @@ export async function POST(req: Request) {
     // so funds reach them — otherwise we don't let money pool in the platform.
     const { data: prof } = await admin
       .from("profiles")
-      .select("razorpay_account_id")
+      .select("razorpay_account_id, plan")
       .eq("id", creatorId)
       .maybeSingle();
     const linkedAccount = (prof?.razorpay_account_id as string) || "";
+    const feePercent = platformFeePercent(prof?.plan as string | undefined);
     if (!linkedAccount) {
       return NextResponse.json(
         { error: "This store hasn't set up payouts yet, so checkout is unavailable." },
@@ -112,7 +113,7 @@ export async function POST(req: Request) {
     };
     // Route split: send the creator their share, platform keeps the commission.
     const totalPaise = amountInr * 100;
-    const creatorPaise = Math.round(totalPaise * (1 - PLATFORM_FEE_PERCENT / 100));
+    const creatorPaise = Math.round(totalPaise * (1 - feePercent / 100));
     const order = await createRazorpayOrder(
       totalPaise,
       {
