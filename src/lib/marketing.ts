@@ -2,12 +2,53 @@ import {
   Apple,
   BarChart2,
   Calendar,
+  Clock,
   Dumbbell,
+  HeartPulse,
   Package,
   Store,
   Target,
+  TrendingUp,
   Users,
 } from "lucide-react";
+
+/** "What is Leviio" — the three things the platform does. */
+export const pillars = [
+  {
+    icon: Store,
+    title: "Sell anything",
+    desc: "Your own branded storefront for programs, PDFs, video courses, memberships and 1-on-1 coaching — with checkout built in.",
+  },
+  {
+    icon: Users,
+    title: "Manage every client",
+    desc: "A real CRM for coaches: assign diet & workout plans, track body metrics and progress, take session notes, and message clients in their private portal.",
+  },
+  {
+    icon: TrendingUp,
+    title: "Grow with data",
+    desc: "See revenue, top products, bookings and client retention at a glance — and make decisions that actually move your business.",
+  },
+];
+
+/** "How Leviio helps you keep clients & grow." */
+export const growthBenefits = [
+  {
+    icon: HeartPulse,
+    title: "Keep clients engaged & coming back",
+    desc: "Deliver personalized diet and training plans, chat in a private client portal, and track every client's progress — the things that keep people motivated and renewing month after month.",
+  },
+  {
+    icon: Clock,
+    title: "Save hours every week",
+    desc: "Stop juggling a link-in-bio, a course host, spreadsheets, a scheduler and a payment app. Bookings, digital delivery, receipts and reminders all happen automatically in one place.",
+  },
+  {
+    icon: TrendingUp,
+    title: "Turn followers into revenue",
+    desc: "Share one link, let your audience buy and book instantly, collect payments to your own account, and watch real-time analytics show you exactly what's working.",
+  },
+];
 
 export const features = [
   {

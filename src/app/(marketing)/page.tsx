@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, Star } from "lucide-react";
-import { features, howItWorks } from "@/lib/marketing";
+import { features, howItWorks, pillars, growthBenefits } from "@/lib/marketing";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -82,6 +82,37 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* What is Leviio */}
+      <section className="border-y border-border bg-card/30">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+          <div className="mx-auto max-w-3xl text-center">
+            <Badge variant="primary" className="mx-auto">What is Leviio</Badge>
+            <h2 className="mt-4 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+              One platform to run your entire coaching business
+            </h2>
+            <p className="mt-4 text-base leading-relaxed text-muted-foreground sm:text-lg">
+              Leviio is an all-in-one platform built for fitness creators, personal
+              trainers and online coaches. Instead of stitching together a
+              link-in-bio, a course host, spreadsheets, a scheduler and a payment
+              app, you run everything — your store, your clients, your programs and
+              your payments — from a single dashboard.
+            </p>
+          </div>
+
+          <div className="mt-12 grid gap-5 md:grid-cols-3">
+            {pillars.map((p) => (
+              <Card key={p.title} className="p-6">
+                <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                  <p.icon className="h-6 w-6" />
+                </span>
+                <h3 className="mt-4 text-lg font-bold text-foreground">{p.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{p.desc}</p>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Features */}
       <section id="features" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="text-center">
@@ -111,6 +142,41 @@ export default function LandingPage() {
               </p>
             </Card>
           ))}
+        </div>
+      </section>
+
+      {/* Why it helps you grow */}
+      <section className="border-t border-border bg-card/30">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+          <div className="mx-auto max-w-2xl text-center">
+            <Badge variant="primary" className="mx-auto">Built to retain &amp; grow</Badge>
+            <h2 className="mt-4 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+              Keep your clients longer. Grow without the busywork.
+            </h2>
+            <p className="mt-3 text-muted-foreground">
+              The hard part of coaching isn&apos;t the workouts — it&apos;s staying
+              organized and keeping clients engaged. Leviio handles both.
+            </p>
+          </div>
+
+          <div className="mt-12 grid gap-6 md:grid-cols-3">
+            {growthBenefits.map((b) => (
+              <div key={b.title} className="relative">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-gradient text-white shadow-glow">
+                  <b.icon className="h-6 w-6" />
+                </span>
+                <h3 className="mt-4 text-lg font-bold text-foreground">{b.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{b.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-10 flex justify-center">
+            <Link href="/signup" className={cn(buttonVariants({ size: "lg" }), "group")}>
+              Start your free trial
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            </Link>
+          </div>
         </div>
       </section>
 
