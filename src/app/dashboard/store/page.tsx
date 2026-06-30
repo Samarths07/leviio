@@ -19,6 +19,8 @@ import {
 import { useApp } from "@/lib/store";
 import { useToast } from "@/components/ui/toast";
 import { themeSwatches } from "@/lib/mock-data";
+import { getSupabaseBrowser } from "@/lib/supabase/config";
+import { getProfileByUsername } from "@/lib/supabase/db";
 import { uploadBanner } from "@/lib/upload";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
@@ -51,10 +53,15 @@ export default function StorePage() {
   const [socials, setSocials] = useState<Socials>(user?.socials ?? {});
   const [bannerBusy, setBannerBusy] = useState(false);
   const bannerInput = useRef<HTMLInputElement>(null);
+  const [handle, setHandle] = useState(user?.username ?? "");
+  const [savingHandle, setSavingHandle] = useState(false);
 
   useEffect(() => {
     setSocials(user?.socials ?? {});
   }, [user?.socials]);
+  useEffect(() => {
+    setHandle(user?.username ?? "");
+  }, [user?.username]);
 
   const published = products.filter((p) => p.status === "Published");
   const accent = user?.bannerColor ?? "#7c3aed";
@@ -64,6 +71,29 @@ export default function StorePage() {
   const copyUrl = () => {
     navigator.clipboard?.writeText(`https://${storeUrl}`);
     toast("Store URL copied", { variant: "success" });
+  };
+
+  const saveHandle = async () => {
+    const next = handle.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
+    if (next === user?.username) return;
+    if (next.length < 3) {
+      toast("Link must be at least 3 characters (letters, numbers, - or _).", { variant: "error" });
+      return;
+    }
+    setSavingHandle(true);
+    const sb = getSupabaseBrowser();
+    if (sb) {
+      const taken = await getProfileByUsername(sb, next);
+      if (taken && taken.id !== user?.id) {
+        setSavingHandle(false);
+        toast("That link is already taken — try another.", { variant: "error" });
+        return;
+      }
+    }
+    updateUser({ username: next });
+    setHandle(next);
+    setSavingHandle(false);
+    toast("Store link updated", { variant: "success" });
   };
 
   const saveSocial = (key: keyof Socials, value: string) => {
@@ -235,15 +265,30 @@ export default function StorePage() {
           {/* Link */}
           <Card>
             <CardHeader><CardTitle>Your store link</CardTitle></CardHeader>
-            <CardContent>
-              <div className="flex gap-2">
-                <div className="flex h-10 flex-1 items-center rounded-lg border border-input bg-background px-3 text-sm text-muted-foreground">
-                  {storeUrl}
+            <CardContent className="space-y-2">
+              <Label>Customize your link</Label>
+              <div className="flex items-stretch gap-2">
+                <div className="flex flex-1 items-center rounded-lg border border-input bg-background pl-3 focus-within:border-primary/60">
+                  <span className="text-sm text-muted-foreground">leviio.com/</span>
+                  <input
+                    value={handle}
+                    onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 30))}
+                    placeholder="your-name"
+                    className="h-10 flex-1 bg-transparent pr-3 text-sm text-foreground outline-none"
+                  />
                 </div>
+                <Button onClick={saveHandle} disabled={savingHandle || handle === user?.username}>
+                  {savingHandle ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  Save
+                </Button>
                 <Button variant="subtle" size="icon" onClick={copyUrl} aria-label="Copy URL">
                   <Copy className="h-4 w-4" />
                 </Button>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Lowercase letters, numbers, - and _. Changing it updates your storefront address
+                (old links stop working).
+              </p>
             </CardContent>
           </Card>
         </div>
