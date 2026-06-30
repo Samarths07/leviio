@@ -6,7 +6,7 @@ import {
 } from "@/lib/razorpay/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient as createServerSupabase } from "@/lib/supabase/server";
-import { PRO_PRICE_INR } from "@/lib/billing";
+import { PRO_PRICE_INR, PLATFORM_FEE_PERCENT } from "@/lib/billing";
 
 export const runtime = "nodejs";
 
@@ -60,6 +60,22 @@ export async function POST(req: Request) {
     }
 
     const admin = createAdminClient();
+
+    // The creator must have connected payouts (Razorpay Route linked account)
+    // so funds reach them — otherwise we don't let money pool in the platform.
+    const { data: prof } = await admin
+      .from("profiles")
+      .select("razorpay_account_id")
+      .eq("id", creatorId)
+      .maybeSingle();
+    const linkedAccount = (prof?.razorpay_account_id as string) || "";
+    if (!linkedAccount) {
+      return NextResponse.json(
+        { error: "This store hasn't set up payouts yet, so checkout is unavailable." },
+        { status: 400 }
+      );
+    }
+
     const ids = items.map((i: { productId: unknown }) => String(i.productId));
     const { data: products } = await admin
       .from("products")
@@ -94,14 +110,29 @@ export async function POST(req: Request) {
       email?: string;
       address?: string;
     };
-    const order = await createRazorpayOrder(amountInr * 100, {
-      purpose: "storefront",
-      creatorId,
-      items: compact.join(",").slice(0, 256),
-      name: (customer.name ?? "").slice(0, 120),
-      email: (customer.email ?? "").slice(0, 120),
-      address: (customer.address ?? "").slice(0, 200),
-    });
+    // Route split: send the creator their share, platform keeps the commission.
+    const totalPaise = amountInr * 100;
+    const creatorPaise = Math.round(totalPaise * (1 - PLATFORM_FEE_PERCENT / 100));
+    const order = await createRazorpayOrder(
+      totalPaise,
+      {
+        purpose: "storefront",
+        creatorId,
+        items: compact.join(",").slice(0, 256),
+        name: (customer.name ?? "").slice(0, 120),
+        email: (customer.email ?? "").slice(0, 120),
+        address: (customer.address ?? "").slice(0, 200),
+      },
+      [
+        {
+          account: linkedAccount,
+          amount: creatorPaise,
+          currency: "INR",
+          on_hold: 0,
+          notes: { creatorId },
+        },
+      ]
+    );
     return NextResponse.json({
       orderId: order.id,
       amount: order.amount,

@@ -76,6 +76,7 @@ export function rowToCreator(r: Row): Creator {
     planExpiresAt: (r.plan_expires_at as string) ?? undefined,
     trial: (r.trial as boolean) ?? false,
     socials: (r.socials as Creator["socials"]) ?? {},
+    razorpayAccountId: (r.razorpay_account_id as string) ?? undefined,
     coachingPackages: (r.coaching_packages as CoachingPackage[]) ?? [],
     sessionNotes: (r.session_notes as SessionNote[]) ?? [],
     isDemo: false,
@@ -100,6 +101,7 @@ function creatorToProfileRow(c: Partial<Creator>): Row {
   if (c.planExpiresAt !== undefined) row.plan_expires_at = c.planExpiresAt ?? null;
   if (c.trial !== undefined) row.trial = c.trial;
   if (c.socials !== undefined) row.socials = c.socials;
+  if (c.razorpayAccountId !== undefined) row.razorpay_account_id = c.razorpayAccountId;
   if (c.coachingPackages !== undefined) row.coaching_packages = c.coachingPackages;
   if (c.sessionNotes !== undefined) row.session_notes = c.sessionNotes;
   return row;

@@ -27,10 +27,23 @@ export interface RazorpayOrder {
   notes?: Record<string, string>;
 }
 
-/** Create a Razorpay order for `amountPaise` (auto-captured on payment). */
+export interface RouteTransfer {
+  account: string; // linked account id (acc_...)
+  amount: number; // paise routed to the linked account
+  currency: "INR";
+  notes?: Record<string, string>;
+  on_hold?: 0 | 1;
+}
+
+/**
+ * Create a Razorpay order for `amountPaise` (auto-captured on payment).
+ * Optional `transfers` use Razorpay Route to split the captured payment to a
+ * creator's linked account; the platform keeps the remainder as commission.
+ */
 export async function createRazorpayOrder(
   amountPaise: number,
-  notes: Record<string, string>
+  notes: Record<string, string>,
+  transfers?: RouteTransfer[]
 ): Promise<RazorpayOrder> {
   const res = await fetch(`${API}/orders`, {
     method: "POST",
@@ -40,6 +53,7 @@ export async function createRazorpayOrder(
       currency: "INR",
       payment_capture: 1,
       notes,
+      ...(transfers && transfers.length ? { transfers } : {}),
     }),
   });
   if (!res.ok) {

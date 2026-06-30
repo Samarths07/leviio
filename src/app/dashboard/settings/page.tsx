@@ -7,15 +7,18 @@ import {
   Check,
   CreditCard,
   Lock,
+  BadgeCheck,
   Shield,
   Sparkles,
   Store as StoreIcon,
   Trash2,
   User,
+  Wallet,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useToast } from "@/components/ui/toast";
 import { niches, pricingPlans, themeSwatches } from "@/lib/mock-data";
+import { PLATFORM_FEE_PERCENT } from "@/lib/billing";
 import { cn, formatCurrency, formatDate, newTrialExpiry } from "@/lib/utils";
 import { PlanPurchaseDialog } from "@/components/dashboard/plan-purchase-dialog";
 import { AvatarUpload } from "@/components/shared/avatar-upload";
@@ -32,6 +35,7 @@ import { Tabs } from "@/components/ui/tabs";
 const tabs = [
   { value: "profile", label: "Profile", icon: User },
   { value: "store", label: "Store", icon: StoreIcon },
+  { value: "payouts", label: "Payouts", icon: Wallet },
   { value: "billing", label: "Billing", icon: CreditCard },
   { value: "notifications", label: "Notifications", icon: Bell },
   { value: "security", label: "Security", icon: Shield },
@@ -73,8 +77,64 @@ function SettingsInner() {
           }}
         />
       )}
+      {tab === "payouts" && <PayoutsTab user={user} onSave={updateUser} toast={toast} />}
       {tab === "notifications" && <NotificationsTab toast={toast} />}
       {tab === "security" && <SecurityTab toast={toast} />}
+    </div>
+  );
+}
+
+function PayoutsTab({ user, onSave, toast }: any) {
+  const connected = !!user.razorpayAccountId;
+  const creatorShare = 100 - PLATFORM_FEE_PERCENT;
+  return (
+    <div className="space-y-5">
+      <Card>
+        <CardHeader className="flex-row items-center justify-between">
+          <CardTitle>Payouts</CardTitle>
+          {connected ? (
+            <Badge variant="success"><BadgeCheck className="mr-1 h-3.5 w-3.5" /> Connected</Badge>
+          ) : (
+            <Badge variant="warning">Not connected</Badge>
+          )}
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Storefront sales are split automatically with Razorpay Route: you keep{" "}
+            <span className="font-semibold text-foreground">{creatorShare}%</span> of every sale,
+            paid to your Razorpay linked account; Leviio keeps {PLATFORM_FEE_PERCENT}% as
+            platform fee. Pro subscription is separate.
+          </p>
+
+          <div>
+            <Label>Razorpay linked account ID</Label>
+            <Input
+              defaultValue={user.razorpayAccountId ?? ""}
+              placeholder="acc_XXXXXXXXXXXX"
+              onBlur={(e) => {
+                const v = e.target.value.trim();
+                if (v === (user.razorpayAccountId ?? "")) return;
+                onSave({ razorpayAccountId: v || undefined });
+                toast(v ? "Payouts account saved" : "Payouts account removed", { variant: "success" });
+              }}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Until this is set, checkout on your storefront is disabled (so no sale is ever
+              stranded).
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-border bg-background/40 p-3 text-xs leading-relaxed text-muted-foreground">
+            <p className="font-semibold text-foreground">How to get your linked account ID</p>
+            <ol className="mt-1 list-decimal space-y-1 pl-4">
+              <li>Your coach platform (Leviio) creates a Razorpay Route linked account for you, or you create one under Razorpay.</li>
+              <li>Complete the quick KYC + add your bank account in Razorpay.</li>
+              <li>Copy the account ID (starts with <span className="font-mono">acc_</span>) and paste it above.</li>
+            </ol>
+            <p className="mt-2">Payouts settle to your bank on Razorpay&rsquo;s standard schedule.</p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

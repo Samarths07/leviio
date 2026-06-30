@@ -30,6 +30,8 @@ export interface Creator {
     /** Storefront hero banner image URL (stored here to avoid a schema change). */
     bannerUrl?: string;
   };
+  /** Razorpay Route linked-account id (acc_...) — storefront sales are split here. */
+  razorpayAccountId?: string;
   /** Coaching offerings + freeform session notes (creator-managed, stored on profile). */
   coachingPackages?: CoachingPackage[];
   sessionNotes?: SessionNote[];
