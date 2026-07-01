@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Bell, LogOut, Menu, Settings, User } from "lucide-react";
+import { Bell, LogOut, Menu, Settings, Shield, User } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { Avatar } from "@/components/ui/avatar";
 import { Dropdown, DropdownItem } from "@/components/ui/dropdown";
@@ -21,6 +21,14 @@ export function TopNav({
   const router = useRouter();
   const { user, logout, conversations, orders, events } = useApp();
   const { toast } = useToast();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/session")
+      .then((r) => r.json())
+      .then((d) => setIsAdmin(!!d.admin))
+      .catch(() => {});
+  }, []);
 
   // Real notifications derived from live data: unread messages, recent
   // purchases (last 7 days) and sessions coming up in the next 48 hours.
@@ -122,6 +130,11 @@ export function TopNav({
               <Link href="/dashboard/settings" onClick={close}>
                 <DropdownItem icon={Settings}>Settings</DropdownItem>
               </Link>
+              {isAdmin && (
+                <Link href="/admin" onClick={close}>
+                  <DropdownItem icon={Shield}>Admin panel</DropdownItem>
+                </Link>
+              )}
               <Separator className="my-1" />
               <DropdownItem
                 icon={LogOut}
