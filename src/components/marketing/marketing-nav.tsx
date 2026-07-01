@@ -64,7 +64,7 @@ export function MarketingNav() {
           >
             Login
           </Link>
-          <Link href="/signup" className={buttonVariants({ size: "md" })}>
+          <Link href="/signup" className={cn(buttonVariants({ size: "md" }), "hidden md:inline-flex")}>
             Start Free Trial
           </Link>
           <button
@@ -103,10 +103,13 @@ export function MarketingNav() {
           >
             Client login
           </a>
-          <div className="flex items-center justify-between rounded-lg px-3 py-2">
-            <span className="text-base font-semibold text-muted-foreground">Theme</span>
-            <ThemeToggle />
-          </div>
+          <Link
+            href="/signup"
+            onClick={() => setOpen(false)}
+            className={cn(buttonVariants({ size: "md" }), "mt-2 w-full")}
+          >
+            Start Free Trial
+          </Link>
         </div>
       )}
     </header>
