@@ -251,6 +251,8 @@ export interface ProgramExercise {
   reps: string;
   rest: number;
   notes: string;
+  /** Optional demo photo (Supabase Storage URL). Stored in the program JSON. */
+  imageUrl?: string;
 }
 
 export interface TrainingDay {

@@ -58,6 +58,10 @@ export function uploadBanner(userId: string, file: File) {
   return uploadImage(userId, "banner", file);
 }
 
+export function uploadExerciseImage(userId: string, file: File) {
+  return uploadImage(userId, "exercises/exercise", file);
+}
+
 /**
  * Upload a digital product's deliverable file to the PRIVATE `product-files`
  * bucket. Returns the storage path (never public) — buyers download via a

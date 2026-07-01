@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs } from "@/components/ui/tabs";
+import { ExerciseImage } from "@/components/dashboard/exercise-image";
 import { cn, formatDate } from "@/lib/utils";
 
 export default function PortalPlan() {
@@ -234,10 +235,15 @@ function WorkoutView({ program }: { program: WorkoutProgram }) {
             </div>
             <div className="divide-y divide-border">
               {d.exercises.map((ex) => (
-                <div key={ex.id} className="flex items-center justify-between p-4">
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold text-foreground">{ex.name}</p>
-                    <p className="text-xs text-muted-foreground">{ex.muscle}</p>
+                <div key={ex.id} className="flex items-center justify-between gap-3 p-4">
+                  <div className="flex min-w-0 items-center gap-3">
+                    {ex.imageUrl && (
+                      <ExerciseImage userId="" src={ex.imageUrl} editable={false} size={48} />
+                    )}
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-foreground">{ex.name}</p>
+                      <p className="text-xs text-muted-foreground">{ex.muscle}</p>
+                    </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-3 text-sm">
                     <span className="font-bold text-foreground">

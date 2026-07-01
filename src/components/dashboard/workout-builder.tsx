@@ -34,6 +34,7 @@ import { Input, Label } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { ExercisePicker } from "@/components/dashboard/exercise-picker";
+import { ExerciseImage } from "@/components/dashboard/exercise-image";
 import { useApp } from "@/lib/store";
 import { useToast } from "@/components/ui/toast";
 
@@ -47,7 +48,7 @@ export function WorkoutBuilder({
   initial?: WorkoutProgram | null;
   onSaved?: () => void;
 }) {
-  const { clients, saveProgram } = useApp();
+  const { clients, saveProgram, user } = useApp();
   const { toast } = useToast();
   const [program, setProgram] = useState<WorkoutProgram>(initial ?? newProgram(8));
   const [activeWeek, setActiveWeek] = useState(0);
@@ -280,6 +281,7 @@ export function WorkoutBuilder({
               <DayCard
                 key={day.id}
                 day={day}
+                userId={user?.id ?? ""}
                 isOpen={expanded === day.id}
                 onToggle={() => setExpanded(expanded === day.id ? null : day.id)}
                 showCopy={program.weeks > 1}
@@ -306,6 +308,7 @@ export function WorkoutBuilder({
 
 function DayCard({
   day,
+  userId,
   isOpen,
   onToggle,
   showCopy,
@@ -317,6 +320,7 @@ function DayCard({
   onCopyToWeeks,
 }: {
   day: TrainingDay;
+  userId: string;
   isOpen: boolean;
   onToggle: () => void;
   showCopy: boolean;
@@ -365,10 +369,11 @@ function DayCard({
 
           {day.exercises.length > 0 && (
             <div className="mb-3 overflow-x-auto">
-              <table className="w-full min-w-[580px] text-left text-sm">
+              <table className="w-full min-w-[640px] text-left text-sm">
                 <thead>
                   <tr className="text-xs uppercase tracking-wider text-muted-foreground">
                     <th className="w-6 pb-2" />
+                    <th className="pb-2 font-semibold">Photo</th>
                     <th className="pb-2 font-semibold">Exercise</th>
                     <th className="pb-2 font-semibold">Sets</th>
                     <th className="pb-2 font-semibold">Reps</th>
@@ -397,6 +402,13 @@ function DayCard({
                         >
                           <GripVertical className="h-4 w-4" />
                         </button>
+                      </td>
+                      <td className="py-2 pr-2">
+                        <ExerciseImage
+                          userId={userId}
+                          src={ex.imageUrl}
+                          onUploaded={(url) => onUpdateExercise(ex.id, { imageUrl: url })}
+                        />
                       </td>
                       <td className="py-2 pr-2">
                         <p className="font-semibold text-foreground">{ex.name}</p>
