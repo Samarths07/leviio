@@ -272,7 +272,7 @@ function ProgressTab({
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid gap-5 [&>*]:min-w-0 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader><CardTitle>Weight Tracking</CardTitle></CardHeader>
           <CardContent>

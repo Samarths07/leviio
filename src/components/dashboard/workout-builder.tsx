@@ -149,7 +149,7 @@ export function WorkoutBuilder({
   };
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
+    <div className="grid gap-5 [&>*]:min-w-0 lg:grid-cols-[280px_1fr]">
       {/* Settings */}
       <div className="space-y-4 lg:sticky lg:top-20 lg:self-start">
         <Card>

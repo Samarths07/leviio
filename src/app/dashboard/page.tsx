@@ -163,7 +163,7 @@ export default function OverviewPage() {
       </Card>
 
       {/* Orders + Top products */}
-      <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+      <div className="grid gap-6 [&>*]:min-w-0 lg:grid-cols-[1.5fr_1fr]">
         <Card>
           <CardHeader className="flex-row items-center justify-between">
             <CardTitle>Recent Orders</CardTitle>
@@ -249,7 +249,7 @@ export default function OverviewPage() {
       </div>
 
       {/* Upcoming sessions + Recent clients */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 [&>*]:min-w-0 lg:grid-cols-2">
         <Card>
           <CardHeader className="flex-row items-center justify-between">
             <CardTitle>Upcoming Sessions</CardTitle>

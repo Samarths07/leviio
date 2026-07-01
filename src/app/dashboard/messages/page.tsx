@@ -55,7 +55,7 @@ export default function MessagesPage() {
     <div className="animate-fade-in">
       <h2 className="mb-4 text-xl font-extrabold tracking-tight text-foreground">Messages</h2>
 
-      <Card className="grid h-[calc(100dvh-220px)] min-h-[480px] grid-cols-1 overflow-hidden md:grid-cols-[280px_1fr] xl:grid-cols-[280px_1fr_280px]">
+      <Card className="grid h-[calc(100dvh-220px)] min-h-[480px] grid-cols-1 overflow-hidden [&>*]:min-w-0 md:grid-cols-[280px_1fr] xl:grid-cols-[280px_1fr_280px]">
         {/* Conversation list */}
         <div className={cn("flex flex-col border-r border-border", mobileChat && "hidden md:flex")}>
           <div className="border-b border-border p-3">
