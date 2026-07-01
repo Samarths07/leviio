@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { guard, AUTH_LIMIT } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -10,6 +11,9 @@ export const runtime = "nodejs";
  * caller side if this isn't available (e.g. service-role not configured).
  */
 export async function POST(req: Request) {
+  const limited = guard(req, { name: "auth-signup", ...AUTH_LIMIT });
+  if (limited) return limited;
+
   let body: Record<string, unknown>;
   try {
     body = (await req.json()) as Record<string, unknown>;

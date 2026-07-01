@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { guard, DEFAULT_LIMIT } from "@/lib/rate-limit";
 import { createClient as createServerSupabase } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -28,7 +29,10 @@ function shortTime(iso?: string): string {
  * client-side RLS policies aren't present, so assigned plans/sessions/messages
  * always show. Keyed strictly to the authenticated user's own email.
  */
-export async function GET() {
+export async function GET(req: Request) {
+  const limited = guard(req, { name: "portal-me", ...DEFAULT_LIMIT });
+  if (limited) return limited;
+
   const supabase = createServerSupabase();
   const {
     data: { user },
@@ -75,11 +79,14 @@ export async function GET() {
     }
 
     // Sessions booked for this client.
+    // Sanitize the name before interpolating into the PostgREST filter string
+    // (strip the chars that could alter the .or() expression).
+    const safeName = client.name.replace(/[,()*]/g, " ").trim();
     const { data: eventRows } = await admin
       .from("calendar_events")
       .select("*")
       .eq("creator_id", coachId)
-      .or(`client_id.eq.${client.id},client_name.ilike.${client.name}`);
+      .or(`client_id.eq.${client.id},client_name.ilike.${safeName}`);
     const events = (eventRows ?? []).map(rowToEvent);
 
     // Message thread(s) for this client + their messages.

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient as createServerSupabase } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { guard, AUTH_LIMIT } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -11,6 +12,9 @@ export const runtime = "nodejs";
  * client directly; this route is used for the username path.
  */
 export async function POST(req: Request) {
+  const limited = guard(req, { name: "auth-login", ...AUTH_LIMIT });
+  if (limited) return limited;
+
   let body: { identifier?: string; password?: string };
   try {
     body = await req.json();

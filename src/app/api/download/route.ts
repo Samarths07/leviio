@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { guard, DEFAULT_LIMIT } from "@/lib/rate-limit";
 import { createClient as createServerSupabase } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -12,6 +13,9 @@ const BUCKET = "product-files";
  * then signs the private file with the service-role client.
  */
 export async function GET(req: Request) {
+  const limited = guard(req, { name: "download", ...DEFAULT_LIMIT });
+  if (limited) return limited;
+
   const orderId = new URL(req.url).searchParams.get("orderId");
   if (!orderId) return NextResponse.json({ error: "Missing order." }, { status: 400 });
 

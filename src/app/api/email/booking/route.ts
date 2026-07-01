@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { guard, DEFAULT_LIMIT } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail, emailConfigured } from "@/lib/email/send";
 import { bookingConfirmationEmail } from "@/lib/email/templates";
@@ -10,6 +11,9 @@ export const runtime = "nodejs";
  * it can't be used to send arbitrary email.
  */
 export async function POST(req: Request) {
+  const limited = guard(req, { name: "email-booking", ...DEFAULT_LIMIT });
+  if (limited) return limited;
+
   if (!emailConfigured()) {
     return NextResponse.json({ error: "Email isn't configured." }, { status: 503 });
   }

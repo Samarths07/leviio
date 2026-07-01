@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { guard, AUTH_LIMIT } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -13,6 +14,9 @@ export const runtime = "nodejs";
  * sign-in set their own password without the coach having to pre-provision it.
  */
 export async function POST(req: Request) {
+  const limited = guard(req, { name: "portal-claim", ...AUTH_LIMIT });
+  if (limited) return limited;
+
   let body: Record<string, unknown>;
   try {
     body = (await req.json()) as Record<string, unknown>;

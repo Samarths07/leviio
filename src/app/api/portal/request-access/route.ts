@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { guard, DEFAULT_LIMIT } from "@/lib/rate-limit";
 import { createClient as createServerSupabase } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -12,7 +13,10 @@ export const runtime = "nodejs";
  * email; never touches 'approved'/'pending' rows. Uses service-role because
  * clients have no UPDATE rights on their own row (prevents self-approval).
  */
-export async function POST() {
+export async function POST(req: Request) {
+  const limited = guard(req, { name: "portal-request", ...DEFAULT_LIMIT });
+  if (limited) return limited;
+
   const supabase = createServerSupabase();
   const {
     data: { user },

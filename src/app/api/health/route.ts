@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { guard, DEFAULT_LIMIT } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -7,7 +8,10 @@ export const runtime = "nodejs";
  * on THIS deployment — booleans only, never the secret values. Visit
  * /api/health to confirm what's wired up (e.g. on the live site vs locally).
  */
-export async function GET() {
+export async function GET(req: Request) {
+  const limited = guard(req, { name: "health", ...DEFAULT_LIMIT });
+  if (limited) return limited;
+
   const has = (v?: string) => Boolean(v && v.trim().length > 0);
 
   const supabase = {

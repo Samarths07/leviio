@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { guard, DEFAULT_LIMIT } from "@/lib/rate-limit";
 import { createClient as createServerSupabase } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -10,7 +11,10 @@ export const runtime = "nodejs";
  * programs, events, orders) via on-delete-cascade FKs. Self-service only —
  * keyed strictly to the authenticated user's own id.
  */
-export async function POST() {
+export async function POST(req: Request) {
+  const limited = guard(req, { name: "account-delete", ...DEFAULT_LIMIT });
+  if (limited) return limited;
+
   const supabase = createServerSupabase();
   const {
     data: { user },

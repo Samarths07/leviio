@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { guard, DEFAULT_LIMIT } from "@/lib/rate-limit";
 import {
   RAZORPAY_KEY_ID,
   createRazorpayOrder,
@@ -18,6 +19,9 @@ export const runtime = "nodejs";
  *  - purpose "storefront"   → sum of the creator's published product prices.
  */
 export async function POST(req: Request) {
+  const limited = guard(req, { name: "rzp-order", ...DEFAULT_LIMIT });
+  if (limited) return limited;
+
   if (!razorpayConfigured()) {
     return NextResponse.json({ error: "Payments are not configured." }, { status: 503 });
   }

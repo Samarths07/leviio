@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { guard, DEFAULT_LIMIT } from "@/lib/rate-limit";
 import { createClient as createServerSupabase } from "@/lib/supabase/server";
 import { getProfile } from "@/lib/supabase/db";
 import { sendEmail, emailConfigured } from "@/lib/email/send";
@@ -8,6 +9,9 @@ export const runtime = "nodejs";
 
 /** Send a real client-portal invite email. Creator-authenticated. */
 export async function POST(req: Request) {
+  const limited = guard(req, { name: "email-invite", ...DEFAULT_LIMIT });
+  if (limited) return limited;
+
   if (!emailConfigured()) {
     return NextResponse.json({ error: "Email isn't configured." }, { status: 503 });
   }

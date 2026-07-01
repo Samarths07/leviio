@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { createClient as createServerSupabase } from "@/lib/supabase/server";
 import { aiConfigured, generateDietPlan } from "@/lib/ai/generate-diet";
+import { guard } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 /** Generate a meal plan with AI. Creator-authenticated. */
 export async function POST(req: Request) {
+  const limited = guard(req, { name: "ai-diet", max: 10, windowMs: 60_000 });
+  if (limited) return limited;
+
   if (!aiConfigured()) {
     return NextResponse.json(
       { error: "AI isn't configured. Add ANTHROPIC_API_KEY to enable it." },

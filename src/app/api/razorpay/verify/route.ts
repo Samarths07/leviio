@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { guard, DEFAULT_LIMIT } from "@/lib/rate-limit";
 import { razorpayConfigured, verifyPaymentSignature } from "@/lib/razorpay/server";
 import { fulfillRazorpayOrder } from "@/lib/razorpay/fulfill";
 
@@ -10,6 +11,9 @@ export const runtime = "nodejs";
  * so the checkout modal can show delivery links.
  */
 export async function POST(req: Request) {
+  const limited = guard(req, { name: "rzp-verify", ...DEFAULT_LIMIT });
+  if (limited) return limited;
+
   if (!razorpayConfigured()) {
     return NextResponse.json({ error: "Payments are not configured." }, { status: 503 });
   }
