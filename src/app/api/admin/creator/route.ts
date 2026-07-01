@@ -7,8 +7,10 @@ export const runtime = "nodejs";
 
 /**
  * Super-admin actions on a creator:
- *   { action: "setPlan", id, plan: "Free"|"Pro" }
- *   { action: "delete",  id }  → deletes the auth user (cascades all their data)
+ *   { action: "setPlan",   id, plan: "Free"|"Pro" }
+ *   { action: "suspend",   id }  → bans the auth user (can't log in)
+ *   { action: "unsuspend", id }  → lifts the ban
+ *   { action: "delete",    id }  → deletes the auth user (cascades all their data)
  */
 export async function POST(req: Request) {
   const limited = guard(req, { name: "admin-creator", ...DEFAULT_LIMIT });
@@ -26,8 +28,8 @@ export async function POST(req: Request) {
   const action = String(body.action ?? "");
   const id = String(body.id ?? "");
   if (!id) return NextResponse.json({ error: "Missing creator id." }, { status: 400 });
-  if (id === me.id && action === "delete") {
-    return NextResponse.json({ error: "You can't delete your own admin account here." }, { status: 400 });
+  if (id === me.id && (action === "delete" || action === "suspend")) {
+    return NextResponse.json({ error: "You can't suspend or delete your own admin account here." }, { status: 400 });
   }
 
   const admin = createAdminClient();
@@ -43,6 +45,14 @@ export async function POST(req: Request) {
       update.plan_expires_at = null;
     }
     const { error } = await admin.from("profiles").update(update).eq("id", id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
+
+  if (action === "suspend" || action === "unsuspend") {
+    const { error } = await admin.auth.admin.updateUserById(id, {
+      ban_duration: action === "suspend" ? "876000h" : "none", // ~100 years
+    });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });
   }

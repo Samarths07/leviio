@@ -5,7 +5,7 @@ import { guard, DEFAULT_LIMIT } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
-/** Every creator with rolled-up counts + revenue (super-admin only). */
+/** Every creator with rolled-up counts + revenue + suspend state (admin only). */
 export async function GET(req: Request) {
   const limited = guard(req, { name: "admin-creators", ...DEFAULT_LIMIT });
   if (limited) return limited;
@@ -14,7 +14,7 @@ export async function GET(req: Request) {
   }
 
   const admin = createAdminClient();
-  const [{ data: profiles }, { data: clients }, { data: products }, { data: orders }] =
+  const [{ data: profiles }, { data: clients }, { data: products }, { data: orders }, authList] =
     await Promise.all([
       admin
         .from("profiles")
@@ -23,7 +23,17 @@ export async function GET(req: Request) {
       admin.from("clients").select("creator_id"),
       admin.from("products").select("creator_id"),
       admin.from("orders").select("creator_id, amount, status"),
+      admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
     ]);
+
+  // Map auth ban + last-sign-in state (native Supabase, no schema change).
+  const banned = new Map<string, boolean>();
+  const lastSignIn = new Map<string, string | null>();
+  for (const u of authList.data?.users ?? []) {
+    const bu = (u as { banned_until?: string | null }).banned_until;
+    banned.set(u.id, !!bu && new Date(bu).getTime() > Date.now());
+    lastSignIn.set(u.id, u.last_sign_in_at ?? null);
+  }
 
   const tally = (rows: { creator_id?: string }[] | null) => {
     const m = new Map<string, number>();
@@ -46,6 +56,8 @@ export async function GET(req: Request) {
     username: p.username as string,
     plan: (p.plan as string) ?? "Free",
     createdAt: p.created_at as string,
+    lastSignIn: lastSignIn.get(p.id as string) ?? null,
+    suspended: banned.get(p.id as string) ?? false,
     payoutsConnected: !!p.razorpay_account_id,
     clients: clientCount.get(p.id as string) ?? 0,
     products: productCount.get(p.id as string) ?? 0,
