@@ -1,8 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles, X } from "lucide-react";
+import { ShieldCheck, Sparkles, X } from "lucide-react";
 import { navItems } from "@/lib/nav";
 import { useApp } from "@/lib/store";
 import { Logo } from "@/components/shared/logo";
@@ -21,6 +22,14 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { user, conversations } = useApp();
   const unreadMessages = conversations.reduce((n, c) => n + (c.unread || 0), 0);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/session")
+      .then((r) => r.json())
+      .then((d) => setIsAdmin(!!d.admin))
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="flex h-full flex-col">
@@ -69,6 +78,24 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           );
         })}
       </nav>
+
+      {/* God mode — only for platform admins */}
+      {isAdmin && (
+        <div className="px-3 pb-1">
+          <Link
+            href="/admin"
+            onClick={onNavigate}
+            className={cn(
+              "flex items-center gap-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2.5 text-sm font-bold transition-colors hover:bg-danger/15",
+              pathname.startsWith("/admin") ? "text-danger" : "text-danger/90"
+            )}
+          >
+            <ShieldCheck className="h-[18px] w-[18px]" />
+            God Mode
+            <Badge variant="danger" className="ml-auto">Admin</Badge>
+          </Link>
+        </div>
+      )}
 
       {/* Plan status — visible on every page */}
       <div className="p-3">
