@@ -127,7 +127,7 @@ export default function OverviewPage() {
             <Link
               key={a.label}
               href={a.href}
-              className="group flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/40 hover:bg-white/[0.02] hover:ring-1 hover:ring-primary/20"
+              className="group flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/40 hover:bg-foreground/[0.02] hover:ring-1 hover:ring-primary/20"
             >
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary transition-transform group-hover:scale-110">
                 <a.icon className="h-5 w-5" />
@@ -196,7 +196,7 @@ export default function OverviewPage() {
                   {recentOrders.map((o) => (
                     <tr
                       key={o.id}
-                      className="border-b border-border/60 last:border-0 hover:bg-white/[0.02]"
+                      className="border-b border-border/60 last:border-0 hover:bg-foreground/[0.02]"
                     >
                       <td className="px-5 py-3">
                         <p className="font-mono text-xs font-semibold text-primary">{o.id}</p>
@@ -229,7 +229,7 @@ export default function OverviewPage() {
               <div key={p.id}>
                 <div className="flex items-center justify-between gap-3 text-sm">
                   <span className="flex min-w-0 items-center gap-2">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-white/[0.06] text-[10px] font-bold text-muted-foreground">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-foreground/[0.06] text-[10px] font-bold text-muted-foreground">
                       {i + 1}
                     </span>
                     <span className="line-clamp-1 font-medium text-foreground">{p.name}</span>

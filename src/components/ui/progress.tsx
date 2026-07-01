@@ -11,7 +11,7 @@ export function Progress({
 }) {
   return (
     <div
-      className={cn("h-2 w-full overflow-hidden rounded-full bg-white/[0.07]", className)}
+      className={cn("h-2 w-full overflow-hidden rounded-full bg-foreground/[0.07]", className)}
       role="progressbar"
       aria-valuenow={Math.round(value)}
       aria-valuemin={0}

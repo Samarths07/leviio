@@ -8,6 +8,7 @@ import { useApp } from "@/lib/store";
 import { Avatar } from "@/components/ui/avatar";
 import { Dropdown, DropdownItem } from "@/components/ui/dropdown";
 import { Separator } from "@/components/ui/separator";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { useToast } from "@/components/ui/toast";
 
 export function TopNav({
@@ -48,7 +49,7 @@ export function TopNav({
       <button
         onClick={onMenuClick}
         aria-label="Open menu"
-        className="flex h-10 w-10 items-center justify-center rounded-lg text-foreground hover:bg-white/[0.06] lg:hidden"
+        className="flex h-10 w-10 items-center justify-center rounded-lg text-foreground hover:bg-foreground/[0.06] lg:hidden"
       >
         <Menu className="h-5 w-5" />
       </button>
@@ -58,11 +59,12 @@ export function TopNav({
       </h1>
 
       <div className="ml-auto flex items-center gap-1">
+        <ThemeToggle />
         {/* Notifications */}
         <Dropdown
           align="right"
           trigger={
-            <span className="relative flex h-10 w-10 items-center justify-center rounded-lg text-foreground hover:bg-white/[0.06]">
+            <span className="relative flex h-10 w-10 items-center justify-center rounded-lg text-foreground hover:bg-foreground/[0.06]">
               <Bell className="h-5 w-5" />
               {notifications.length > 0 && (
                 <span className="absolute right-2 top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-white">
@@ -87,7 +89,7 @@ export function TopNav({
                     key={i}
                     href={n.href}
                     onClick={close}
-                    className="flex items-start gap-2.5 rounded-lg px-3 py-2.5 hover:bg-white/[0.04]"
+                    className="flex items-start gap-2.5 rounded-lg px-3 py-2.5 hover:bg-foreground/[0.04]"
                   >
                     <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                     <p className="text-sm text-foreground">{n.text}</p>
@@ -102,7 +104,7 @@ export function TopNav({
         <Dropdown
           align="right"
           trigger={
-            <span className="flex items-center gap-2 rounded-lg p-1 hover:bg-white/[0.06]">
+            <span className="flex items-center gap-2 rounded-lg p-1 hover:bg-foreground/[0.06]">
               <Avatar name={user?.name ?? "Creator"} seed={user?.avatarSeed} src={user?.avatarUrl} size={32} ring />
             </span>
           }

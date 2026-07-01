@@ -334,7 +334,7 @@ function BillingTab({ user, onPurchase, onStartTrial, onDowngrade }: any) {
         <CardHeader><CardTitle>Payment Method</CardTitle></CardHeader>
         <CardContent>
           <div className="flex items-center gap-3 rounded-xl border border-border bg-background/40 p-4">
-            <span className="flex h-10 w-14 items-center justify-center rounded-md bg-white/[0.06] text-xs font-bold text-foreground">VISA</span>
+            <span className="flex h-10 w-14 items-center justify-center rounded-md bg-foreground/[0.06] text-xs font-bold text-foreground">VISA</span>
             <div>
               <p className="text-sm font-semibold text-foreground">•••• •••• •••• 4242</p>
               <p className="text-xs text-muted-foreground">Expires 12/28</p>

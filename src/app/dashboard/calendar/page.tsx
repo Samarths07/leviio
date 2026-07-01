@@ -80,7 +80,7 @@ export default function CalendarPage() {
                     : shiftSelected(-7)
                 }
                 aria-label="Previous"
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-foreground hover:bg-white/[0.06]"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-foreground hover:bg-foreground/[0.06]"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
@@ -91,7 +91,7 @@ export default function CalendarPage() {
                     : shiftSelected(7)
                 }
                 aria-label="Next"
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-foreground hover:bg-white/[0.06]"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-foreground hover:bg-foreground/[0.06]"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>

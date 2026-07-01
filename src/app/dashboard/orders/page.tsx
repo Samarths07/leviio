@@ -157,7 +157,7 @@ export default function OrdersPage() {
                   const t = orderType(o);
                   const f = fulfillmentOf(o);
                   return (
-                    <tr key={o.id} className="border-b border-border/60 last:border-0 align-top hover:bg-white/[0.02]">
+                    <tr key={o.id} className="border-b border-border/60 last:border-0 align-top hover:bg-foreground/[0.02]">
                       <td className="px-4 py-3">
                         <p className="font-mono text-xs font-semibold text-primary">#{o.id.replace(/^#/, "")}</p>
                         <p className="text-xs text-muted-foreground">{formatDate(o.date, "short")}</p>

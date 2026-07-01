@@ -55,7 +55,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors",
                 active
                   ? "bg-primary/15 text-primary"
-                  : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
+                  : "text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground"
               )}
             >
               <Icon className="h-[18px] w-[18px]" />
@@ -139,7 +139,7 @@ export function MobileSidebar({
         <button
           onClick={onClose}
           aria-label="Close menu"
-          className="absolute right-3 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"
+          className="absolute right-3 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"
         >
           <X className="h-5 w-5" />
         </button>

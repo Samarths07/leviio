@@ -45,7 +45,7 @@ export function GoogleButton({
       type="button"
       onClick={signIn}
       disabled={loading}
-      className="flex h-11 w-full items-center justify-center gap-2.5 rounded-lg border border-border bg-card text-sm font-semibold text-foreground transition-colors hover:bg-white/[0.04] disabled:opacity-60"
+      className="flex h-11 w-full items-center justify-center gap-2.5 rounded-lg border border-border bg-card text-sm font-semibold text-foreground transition-colors hover:bg-foreground/[0.04] disabled:opacity-60"
     >
       {loading ? (
         <Loader2 className="h-4 w-4 animate-spin" />

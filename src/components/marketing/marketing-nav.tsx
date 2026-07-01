@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { Logo } from "@/components/shared/logo";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { portalUrl } from "@/lib/hosts";
 import { cn } from "@/lib/utils";
 
@@ -50,6 +51,7 @@ export function MarketingNav() {
         </div>
 
         <div className="flex items-center gap-2">
+          <ThemeToggle className="hidden sm:flex" />
           <a
             href={portalUrl()}
             className="hidden rounded-lg px-3.5 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground lg:block"
@@ -68,7 +70,7 @@ export function MarketingNav() {
           <button
             onClick={() => setOpen((v) => !v)}
             aria-label="Menu"
-            className="flex h-10 w-10 items-center justify-center rounded-lg text-foreground hover:bg-white/[0.06] md:hidden"
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-foreground hover:bg-foreground/[0.06] md:hidden"
           >
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>

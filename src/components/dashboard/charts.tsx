@@ -18,8 +18,9 @@ import {
 } from "recharts";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
-const AXIS = { stroke: "#3f3f46", fontSize: 11, tickLine: false, axisLine: false };
-const GRID = "#1f1f23";
+// Theme-neutral translucent grays (SVG stroke attrs can't use CSS vars).
+const AXIS = { stroke: "rgba(113,113,122,0.4)", fontSize: 11, tickLine: false, axisLine: false };
+const GRID = "rgba(113,113,122,0.18)";
 
 function currencyTooltip(value: number) {
   return [formatCurrency(value), "Revenue"] as [string, string];
@@ -50,7 +51,7 @@ export function RevenueLineChart({
         <Tooltip
           formatter={currencyTooltip}
           labelFormatter={(l) => formatDate(l, "medium")}
-          contentStyle={{ background: "#131316", border: "1px solid #1f1f23", borderRadius: 8 }}
+          contentStyle={{ background: "rgb(var(--popover))", border: "1px solid rgb(var(--border))", borderRadius: 8 }}
         />
         <Line
           type="monotone"
@@ -92,7 +93,7 @@ export function RevenueAreaChart({
         <Tooltip
           formatter={currencyTooltip}
           labelFormatter={(l) => formatDate(l, "medium")}
-          contentStyle={{ background: "#131316", border: "1px solid #1f1f23", borderRadius: 8 }}
+          contentStyle={{ background: "rgb(var(--popover))", border: "1px solid rgb(var(--border))", borderRadius: 8 }}
         />
         <Area
           type="monotone"
@@ -131,7 +132,7 @@ export function CategoryPieChart({
         </Pie>
         <Tooltip
           formatter={(v: number, n) => [formatCurrency(v), n as string]}
-          contentStyle={{ background: "#131316", border: "1px solid #1f1f23", borderRadius: 8 }}
+          contentStyle={{ background: "rgb(var(--popover))", border: "1px solid rgb(var(--border))", borderRadius: 8 }}
         />
       </PieChart>
     </ResponsiveContainer>
@@ -151,7 +152,7 @@ export function AcquisitionBarChart({
         <YAxis {...AXIS} width={36} />
         <Tooltip
           cursor={{ fill: "rgba(124,58,237,0.08)" }}
-          contentStyle={{ background: "#131316", border: "1px solid #1f1f23", borderRadius: 8 }}
+          contentStyle={{ background: "rgb(var(--popover))", border: "1px solid rgb(var(--border))", borderRadius: 8 }}
         />
         <Bar dataKey="new" stackId="a" fill="#7c3aed" radius={[0, 0, 0, 0]} name="New" />
         <Bar dataKey="returning" stackId="a" fill="#3f3f46" radius={[4, 4, 0, 0]} name="Returning" />
@@ -173,7 +174,7 @@ export function WeightLineChart({
         <YAxis {...AXIS} width={40} domain={["dataMin - 2", "dataMax + 2"]} unit="kg" />
         <Tooltip
           formatter={(v: number) => [`${v} kg`, "Weight"]}
-          contentStyle={{ background: "#131316", border: "1px solid #1f1f23", borderRadius: 8 }}
+          contentStyle={{ background: "rgb(var(--popover))", border: "1px solid rgb(var(--border))", borderRadius: 8 }}
         />
         <Line
           type="monotone"
@@ -201,7 +202,7 @@ export function CaloriesBarChart({
         <Tooltip
           cursor={{ fill: "rgba(124,58,237,0.08)" }}
           formatter={(v: number) => [`${v} kcal`, "Calories"]}
-          contentStyle={{ background: "#131316", border: "1px solid #1f1f23", borderRadius: 8 }}
+          contentStyle={{ background: "rgb(var(--popover))", border: "1px solid rgb(var(--border))", borderRadius: 8 }}
         />
         <Bar dataKey="calories" fill="#7c3aed" radius={[4, 4, 0, 0]} />
       </BarChart>

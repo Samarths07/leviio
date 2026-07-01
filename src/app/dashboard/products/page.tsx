@@ -129,7 +129,7 @@ function ProductsInner() {
               </thead>
               <tbody>
                 {filtered.map((p) => (
-                  <tr key={p.id} className="border-b border-border/60 last:border-0 hover:bg-white/[0.02]">
+                  <tr key={p.id} className="border-b border-border/60 last:border-0 hover:bg-foreground/[0.02]">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-secondary">
@@ -168,7 +168,7 @@ function ProductsInner() {
                         <button
                           onClick={() => openEdit(p)}
                           aria-label="Edit"
-                          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"
+                          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"
                         >
                           <Edit2 className="h-4 w-4" />
                         </button>
@@ -178,7 +178,7 @@ function ProductsInner() {
                             target="_blank"
                             rel="noopener noreferrer"
                             aria-label="View in store"
-                            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"
+                            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"
                           >
                             <ExternalLink className="h-4 w-4" />
                           </a>

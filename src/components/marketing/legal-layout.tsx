@@ -47,7 +47,7 @@ export function LegalLayout({
                 <a
                   key={s.id}
                   href={`#${s.id}`}
-                  className="block rounded-lg px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-white/[0.04] hover:text-foreground"
+                  className="block rounded-lg px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
                 >
                   {i + 1}. {s.heading}
                 </a>

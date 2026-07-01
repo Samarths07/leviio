@@ -15,6 +15,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dropdown } from "@/components/ui/dropdown";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { cn } from "@/lib/utils";
 
 function isActive(pathname: string, href: string) {
@@ -168,7 +169,7 @@ export default function PortalLayout({
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors",
                   active
                     ? "bg-primary/15 text-primary"
-                    : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
+                    : "text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground"
                 )}
               >
                 <Icon className="h-[18px] w-[18px]" />
@@ -193,13 +194,13 @@ export default function PortalLayout({
           </div>
           <a
             href={appUrl(`/${coach.username}`)}
-            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-white/[0.04] hover:text-foreground"
+            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
           >
             <Store className="h-[18px] w-[18px]" /> Browse store
           </a>
           <button
             onClick={logout}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-white/[0.04] hover:text-danger"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-danger"
           >
             <LogOut className="h-[18px] w-[18px]" /> Log out
           </button>
@@ -217,10 +218,11 @@ export default function PortalLayout({
             {portalPageTitle(pathname)}
           </h1>
           <div className="flex items-center gap-1">
+            <ThemeToggle />
             <Dropdown
               align="right"
               trigger={
-                <span className="relative flex h-10 w-10 items-center justify-center rounded-lg text-foreground hover:bg-white/[0.06]">
+                <span className="relative flex h-10 w-10 items-center justify-center rounded-lg text-foreground hover:bg-foreground/[0.06]">
                   <Bell className="h-5 w-5" />
                   {notifications.length > 0 && (
                     <span className="absolute right-2 top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-white">
@@ -245,7 +247,7 @@ export default function PortalLayout({
                         key={i}
                         href={n.href}
                         onClick={close}
-                        className="flex items-start gap-2.5 rounded-lg px-3 py-2.5 hover:bg-white/[0.04]"
+                        className="flex items-start gap-2.5 rounded-lg px-3 py-2.5 hover:bg-foreground/[0.04]"
                       >
                         <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                         <p className="text-sm text-foreground">{n.text}</p>

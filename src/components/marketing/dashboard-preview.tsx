@@ -17,7 +17,7 @@ export function DashboardPreview() {
           <span className="h-2.5 w-2.5 rounded-full bg-danger/70" />
           <span className="h-2.5 w-2.5 rounded-full bg-warning/70" />
           <span className="h-2.5 w-2.5 rounded-full bg-success/70" />
-          <span className="ml-3 rounded-md bg-white/[0.04] px-2 py-0.5 text-[10px] text-muted-foreground">
+          <span className="ml-3 rounded-md bg-foreground/[0.04] px-2 py-0.5 text-[10px] text-muted-foreground">
             leviio.com/dashboard
           </span>
         </div>
@@ -42,8 +42,8 @@ export function DashboardPreview() {
           <div className="flex-1 p-4">
             <div className="mb-3 flex items-center justify-between">
               <div>
-                <div className="h-3 w-24 rounded bg-white/[0.08]" />
-                <div className="mt-1.5 h-2 w-16 rounded bg-white/[0.04]" />
+                <div className="h-3 w-24 rounded bg-foreground/[0.08]" />
+                <div className="mt-1.5 h-2 w-16 rounded bg-foreground/[0.04]" />
               </div>
               <div className="h-7 w-20 rounded-lg bg-brand-gradient" />
             </div>
@@ -58,14 +58,14 @@ export function DashboardPreview() {
                 <div key={i} className="rounded-lg border border-border bg-background/40 p-2.5">
                   <s.icon className={`h-3.5 w-3.5 ${s.c}`} />
                   <p className="mt-1.5 text-sm font-bold text-foreground">{s.v}</p>
-                  <div className="mt-1 h-1.5 w-8 rounded bg-white/[0.06]" />
+                  <div className="mt-1 h-1.5 w-8 rounded bg-foreground/[0.06]" />
                 </div>
               ))}
             </div>
 
             {/* chart */}
             <div className="mt-3 rounded-lg border border-border bg-background/40 p-3">
-              <div className="h-2 w-20 rounded bg-white/[0.06]" />
+              <div className="h-2 w-20 rounded bg-foreground/[0.06]" />
               <div className="mt-3 flex h-24 items-end gap-2">
                 {bars.map((h, i) => (
                   <div

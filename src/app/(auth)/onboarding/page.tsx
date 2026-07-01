@@ -98,7 +98,7 @@ export default function OnboardingPage() {
             </span>
             <span>{steps[step]}</span>
           </div>
-          <div className="h-2 overflow-hidden rounded-full bg-white/[0.07]">
+          <div className="h-2 overflow-hidden rounded-full bg-foreground/[0.07]">
             <div
               className="h-full rounded-full bg-brand-gradient transition-all duration-500"
               style={{ width: `${progress}%` }}

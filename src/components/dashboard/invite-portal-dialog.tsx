@@ -90,7 +90,7 @@ export function InvitePortalDialog({
     >
       {/* QR */}
       <div className="flex flex-col items-center">
-        <div className="rounded-2xl border border-border bg-[#18181b] p-3">
+        <div className="rounded-2xl border border-border bg-muted p-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={qr} alt="Portal login QR code" width={160} height={160} className="h-40 w-40 rounded-lg" />
         </div>

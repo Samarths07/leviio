@@ -66,7 +66,7 @@ export function DropdownItem({
         "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors",
         danger
           ? "text-danger hover:bg-danger/10"
-          : "text-foreground hover:bg-white/[0.06]"
+          : "text-foreground hover:bg-foreground/[0.06]"
       )}
     >
       {Icon && <Icon className="h-4 w-4" />}

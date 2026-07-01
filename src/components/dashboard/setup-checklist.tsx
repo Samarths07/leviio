@@ -78,7 +78,7 @@ export function SetupChecklist() {
         <button
           onClick={dismiss}
           aria-label="Dismiss checklist"
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"
         >
           <X className="h-4 w-4" />
         </button>

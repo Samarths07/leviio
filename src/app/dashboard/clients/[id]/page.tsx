@@ -145,7 +145,7 @@ export default function ClientProfilePage() {
 function InfoRow({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.04] text-muted-foreground">
+      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-foreground/[0.04] text-muted-foreground">
         <Icon className="h-4 w-4" />
       </span>
       <div>

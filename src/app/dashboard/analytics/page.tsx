@@ -215,7 +215,7 @@ export default function AnalyticsPage() {
                   </tr>
                 )}
                 {orders.slice(0, 12).map((t) => (
-                  <tr key={t.id} className="border-b border-border/60 last:border-0 hover:bg-white/[0.02]">
+                  <tr key={t.id} className="border-b border-border/60 last:border-0 hover:bg-foreground/[0.02]">
                     <td className="px-5 py-3 text-muted-foreground">{t.date}</td>
                     <td className="px-5 py-3 font-medium text-foreground">{t.client}</td>
                     <td className="px-5 py-3 text-muted-foreground">{t.product}</td>

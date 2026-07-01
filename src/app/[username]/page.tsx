@@ -168,7 +168,7 @@ export default function StorefrontPage() {
             <button
               onClick={() => setCartOpen(true)}
               aria-label="Cart"
-              className="relative flex h-10 w-10 items-center justify-center rounded-lg text-foreground hover:bg-white/[0.06]"
+              className="relative flex h-10 w-10 items-center justify-center rounded-lg text-foreground hover:bg-foreground/[0.06]"
             >
               <ShoppingBag className="h-5 w-5" />
               {count > 0 && (
@@ -325,7 +325,7 @@ export default function StorefrontPage() {
           <h2 className="flex items-center gap-2 text-lg font-bold text-foreground">
             <ShoppingBag className="h-5 w-5" style={{ color: accent }} /> Your Cart ({count})
           </h2>
-          <button onClick={() => setCartOpen(false)} aria-label="Close cart" className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-white/[0.06] hover:text-foreground">
+          <button onClick={() => setCartOpen(false)} aria-label="Close cart" className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground">
             <X className="h-5 w-5" />
           </button>
         </div>

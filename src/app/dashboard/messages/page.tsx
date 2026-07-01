@@ -77,8 +77,8 @@ export default function MessagesPage() {
                   key={c.id}
                   onClick={() => select(c.id)}
                   className={cn(
-                    "flex w-full items-center gap-3 border-b border-border/60 p-3 text-left transition-colors hover:bg-white/[0.03]",
-                    c.id === activeId && "bg-white/[0.04]"
+                    "flex w-full items-center gap-3 border-b border-border/60 p-3 text-left transition-colors hover:bg-foreground/[0.03]",
+                    c.id === activeId && "bg-foreground/[0.04]"
                   )}
                 >
                   <Avatar name={c.clientName} seed={c.clientAvatar} size={42} ring />
