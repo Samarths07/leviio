@@ -51,7 +51,7 @@ export function MarketingNav() {
         </div>
 
         <div className="flex items-center gap-2">
-          <ThemeToggle className="hidden sm:flex" />
+          <ThemeToggle />
           <a
             href={portalUrl()}
             className="hidden rounded-lg px-3.5 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground lg:block"
@@ -103,6 +103,10 @@ export function MarketingNav() {
           >
             Client login
           </a>
+          <div className="flex items-center justify-between rounded-lg px-3 py-2">
+            <span className="text-base font-semibold text-muted-foreground">Theme</span>
+            <ThemeToggle />
+          </div>
         </div>
       )}
     </header>
